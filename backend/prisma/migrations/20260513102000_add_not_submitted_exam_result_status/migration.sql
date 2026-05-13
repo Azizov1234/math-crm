@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ExamResultStatus" ADD VALUE IF NOT EXISTS 'NOT_SUBMITTED';

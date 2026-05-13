@@ -1,0 +1,385 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  DELETED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+}
+
+enum ExamStatus {
+  SCHEDULED
+  FINISHED
+  CANCELLED
+}
+
+enum ExamResultStatus {
+  PASSED
+  FAILED
+  SKIPPED
+  SENT_TO_RETAKE
+  NOT_SUBMITTED
+}
+
+enum FileModule {
+  ADMIN_PHOTO
+  STUDENT_PHOTO
+  TEACHER_PHOTO
+  SETTINGS_LOGO
+}
+
+enum GroupStudentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum BillingStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum BillingType {
+  DEFAULT
+  DISCOUNTED
+  FREE
+}
+
+model User {
+  id               String    @id @default(uuid())
+  fullName         String
+  username         String    @unique
+  email            String?   @unique
+  phone            String?   @unique
+  password         String
+  role             UserRole
+  branchId         String?
+  status           Status    @default(ACTIVE)
+  photoUrl         String?
+  refreshTokenHash String?
+  lastLoginAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  branch          Branch?         @relation(fields: [branchId], references: [id])
+  createdPayments Payment[]       @relation("PaymentCreatedBy")
+  examResults     MonthlyExamResult[] @relation("MonthlyExamResultCreatedBy")
+  settingsUpdates SystemSettings[]
+  actionLogs      ActionLog[]
+  errorLogs       ErrorLog[]
+
+  @@index([role, status])
+  @@index([branchId])
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  phone     String?
+  status    Status   @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  users           User[]
+  students        Student[]
+  teachers        Teacher[]
+  courses         Course[]
+  groups          Group[]
+  studentBillings StudentBilling[]
+  payments        Payment[]
+  monthlyExams    MonthlyExam[]
+
+  @@unique([name])
+}
+
+model Student {
+  id            String    @id @default(uuid())
+  branchId      String
+  fullName      String
+  phone         String    @unique
+  parentPhone   String?
+  birthDate     DateTime?
+  photoUrl      String?
+  status        Status    @default(ACTIVE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deactivatedAt DateTime?
+  deletedAt     DateTime?
+
+  branch           Branch              @relation(fields: [branchId], references: [id])
+  groupMemberships GroupStudent[]
+  billings         StudentBilling[]
+  payments         Payment[]
+  examResults      MonthlyExamResult[]
+
+  @@index([branchId])
+  @@index([fullName])
+  @@index([status])
+}
+
+model Teacher {
+  id        String    @id @default(uuid())
+  branchId  String
+  fullName  String
+  phone     String
+  subject   String
+  salary    Decimal?  @db.Decimal(12, 2)
+  photoUrl  String?
+  status    Status    @default(ACTIVE)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  branch Branch @relation(fields: [branchId], references: [id])
+  groups GroupTeacher[]
+
+  @@index([branchId])
+  @@index([fullName])
+  @@index([subject])
+}
+
+model Course {
+  id             String    @id @default(uuid())
+  branchId       String
+  name           String
+  description    String?
+  monthlyPrice   Decimal   @db.Decimal(12, 2)
+  durationMonths Int?
+  status         Status    @default(ACTIVE)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  groups       Group[]
+  monthlyExams MonthlyExam[]
+
+  @@unique([branchId, name])
+  @@index([branchId])
+}
+
+model Group {
+  id         String    @id @default(uuid())
+  branchId   String
+  courseId   String
+  name       String
+  lessonDays String
+  lessonTime String
+  startDate  DateTime
+  endDate    DateTime?
+  monthlyFee Decimal   @db.Decimal(12, 2)
+  status     Status    @default(ACTIVE)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  branch          Branch          @relation(fields: [branchId], references: [id])
+  course          Course          @relation(fields: [courseId], references: [id])
+  teachers        GroupTeacher[]
+  students        GroupStudent[]
+  studentBillings StudentBilling[]
+  payments        Payment[]
+  monthlyExams    MonthlyExam[]
+
+  @@unique([branchId, name])
+  @@index([branchId, courseId])
+}
+
+model GroupTeacher {
+  id        String   @id @default(uuid())
+  groupId   String
+  teacherId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group   Group   @relation(fields: [groupId], references: [id])
+  teacher Teacher @relation(fields: [teacherId], references: [id])
+
+  @@unique([groupId, teacherId])
+  @@index([teacherId])
+  @@index([groupId])
+}
+
+model GroupStudent {
+  id        String             @id @default(uuid())
+  groupId   String
+  studentId String
+  joinedAt  DateTime           @default(now())
+  leftAt    DateTime?
+  status    GroupStudentStatus @default(ACTIVE)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  group   Group   @relation(fields: [groupId], references: [id])
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@unique([groupId, studentId])
+  @@index([studentId, status])
+}
+
+model StudentBilling {
+  id              String        @id @default(uuid())
+  studentId       String
+  groupId         String
+  branchId        String
+  monthlyFee      Decimal       @db.Decimal(12, 2)
+  billingType     BillingType   @default(DEFAULT)
+  discountReason  String?
+  note            String?
+  lastPaymentDate DateTime?
+  nextPaymentDate DateTime?
+  status          BillingStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id])
+  group   Group   @relation(fields: [groupId], references: [id])
+  branch  Branch  @relation(fields: [branchId], references: [id])
+
+  @@unique([studentId, groupId])
+  @@index([branchId, status, nextPaymentDate])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  studentId       String
+  groupId         String
+  branchId        String
+  amount          Decimal       @db.Decimal(12, 2)
+  method          PaymentMethod
+  paidAt          DateTime      @default(now())
+  paymentForMonth Int?
+  paymentForYear  Int?
+  note            String?
+  createdById     String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  student   Student @relation(fields: [studentId], references: [id])
+  group     Group   @relation(fields: [groupId], references: [id])
+  branch    Branch  @relation(fields: [branchId], references: [id])
+  createdBy User    @relation("PaymentCreatedBy", fields: [createdById], references: [id])
+
+  @@index([branchId, paidAt])
+  @@index([studentId, groupId])
+}
+
+model MonthlyExam {
+  id        String     @id @default(uuid())
+  branchId  String
+  courseId  String
+  groupId   String
+  title     String
+  examDate  DateTime
+  status    ExamStatus @default(SCHEDULED)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+
+  branch  Branch             @relation(fields: [branchId], references: [id])
+  course  Course             @relation(fields: [courseId], references: [id])
+  group   Group              @relation(fields: [groupId], references: [id])
+  results MonthlyExamResult[]
+
+  @@index([branchId, groupId, examDate])
+}
+
+model MonthlyExamResult {
+  id          String           @id @default(uuid())
+  examId       String
+  studentId    String
+  result       ExamResultStatus
+  comment      String?
+  checkedAt    DateTime?
+  createdById  String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  exam      MonthlyExam @relation(fields: [examId], references: [id])
+  student   Student     @relation(fields: [studentId], references: [id])
+  createdBy User        @relation("MonthlyExamResultCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([examId, studentId])
+  @@index([result, createdAt])
+}
+
+model SystemSettings {
+  id          String   @id @default(uuid())
+  academyName String
+  logoUrl     String?
+  phone       String?
+  address     String?
+  description String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation(fields: [updatedById], references: [id])
+}
+
+model UploadedFile {
+  id           String    @id @default(uuid())
+  ownerId      String?
+  module       FileModule
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  createdAt    DateTime  @default(now())
+
+  @@index([ownerId, module])
+}
+
+model ActionLog {
+  id          String    @id @default(uuid())
+  userId      String?
+  role        UserRole?
+  action      String
+  module      String
+  description String
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([module, action, createdAt])
+}
+
+model ErrorLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  path       String
+  method     String
+  message    String
+  stack      String?
+  statusCode Int
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt, statusCode])
+}

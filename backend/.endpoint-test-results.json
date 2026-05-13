@@ -1,0 +1,177 @@
+[
+    {
+        "endpoint":  "POST /auth/login",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "POST /auth/login (admin)",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /auth/me",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "POST /auth/refresh",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "Guard no token -\u003e 401",
+        "status":  404,
+        "ok":  false
+    },
+    {
+        "endpoint":  "Guard ADMIN /admins -\u003e 403",
+        "status":  403,
+        "ok":  true
+    },
+    {
+        "endpoint":  "Guard ADMIN /system-logs -\u003e 403",
+        "status":  403,
+        "ok":  true
+    },
+    {
+        "endpoint":  "Guard ADMIN PATCH /settings -\u003e 403",
+        "status":  403,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /admins",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /students",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /teachers",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /courses",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /groups",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /groups/:id/students",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /payments",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /debtors",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /debtors/summary",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /debtors/by-group",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /monthly-exams",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /exam-results",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /dashboard/summary",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /dashboard/revenue-chart",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /dashboard/payment-method-chart",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /dashboard/debtors-chart",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /dashboard/exam-result-chart",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /settings",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "GET /system-logs/actions",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "POST /payments",
+        "status":  400,
+        "ok":  false
+    },
+    {
+        "endpoint":  "GET /payments/summary",
+        "status":  200,
+        "ok":  true
+    },
+    {
+        "endpoint":  "POST /monthly-exams",
+        "status":  400,
+        "ok":  false
+    },
+    {
+        "endpoint":  "POST /admins/:id/photo",
+        "status":  201,
+        "ok":  true
+    },
+    {
+        "endpoint":  "POST /students/:id/photo",
+        "status":  201,
+        "ok":  true
+    },
+    {
+        "endpoint":  "POST /teachers/:id/photo",
+        "status":  201,
+        "ok":  true
+    },
+    {
+        "endpoint":  "POST /settings/logo",
+        "status":  201,
+        "ok":  true
+    },
+    {
+        "endpoint":  "POST /auth/logout",
+        "status":  200,
+        "ok":  true
+    }
+]
