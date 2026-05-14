@@ -145,9 +145,6 @@ export class GroupsService {
       if (!teacher) {
         throw new BadRequestException(`Teacher with id ${teacherId} is not active or not found`);
       }
-      if (teacher.branchId !== targetBranchId) {
-        throw new BadRequestException(`Teacher with id ${teacherId} must belong to selected branch`);
-      }
     }
 
     const created = await this.groupsRepository.create({
@@ -208,9 +205,6 @@ export class GroupsService {
           const teacher = await this.groupsRepository.findActiveTeacher(teacherId);
           if (!teacher) {
             throw new BadRequestException(`Teacher with id ${teacherId} is not active or not found`);
-          }
-          if (teacher.branchId !== nextBranchId) {
-            throw new BadRequestException(`Teacher with id ${teacherId} must belong to selected branch`);
           }
         }
       }
