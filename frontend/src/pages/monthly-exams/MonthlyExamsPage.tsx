@@ -192,6 +192,21 @@ export default function MonthlyExamsPage() {
 
   const [deleteResultTarget, setDeleteResultTarget] = useState<{ id: string; studentName: string } | null>(null);
 
+  const ensureExamStats = async (examId: string) => {
+    if (examId in statsMap) {
+      return statsMap[examId] ?? null;
+    }
+
+    try {
+      const stats = await monthlyExamsApi.getStatistics(examId);
+      setStatsMap((prev) => ({ ...prev, [examId]: stats }));
+      return stats;
+    } catch {
+      setStatsMap((prev) => ({ ...prev, [examId]: null }));
+      return null;
+    }
+  };
+
   const loadExams = async () => {
     try {
       setLoading(true);
@@ -205,18 +220,9 @@ export default function MonthlyExamsPage() {
 
       const mapped = (response.data ?? []).map(mapExam);
       setExams(mapped);
-
-      const statisticsEntries = await Promise.all(
-        mapped.map(async (exam) => {
-          try {
-            const stats = await monthlyExamsApi.getStatistics(exam.id);
-            return [exam.id, stats] as const;
-          } catch {
-            return [exam.id, null] as const;
-          }
-        }),
+      setStatsMap((prev) =>
+        Object.fromEntries(mapped.filter((exam) => exam.id in prev).map((exam) => [exam.id, prev[exam.id]])),
       );
-      setStatsMap(Object.fromEntries(statisticsEntries));
     } catch (error) {
       toast.error(getErrorMessage(error, 'Imtihonlarni yuklashda xatolik'));
       console.error(error);
@@ -405,11 +411,13 @@ export default function MonthlyExamsPage() {
       const mapped = mapExam(fullExam);
       setSelectedExam(mapped);
       setResultsOpen(true);
+      setSelectedExamStats(statsMap[mapped.id] ?? null);
       await Promise.all([loadResultsForExam(mapped), loadGroupStudents(mapped.groupId)]);
     } catch (error) {
       toast.error(getErrorMessage(error, "Imtihon tafsilotini yuklashda xatolik"));
       setSelectedExam(exam);
       setResultsOpen(true);
+      setSelectedExamStats(statsMap[exam.id] ?? null);
       await Promise.all([loadResultsForExam(exam), loadGroupStudents(exam.groupId)]);
     }
   };
@@ -609,7 +617,15 @@ export default function MonthlyExamsPage() {
                     <button
                       type="button"
                       className="flex w-full items-start justify-between gap-3 text-left"
-                      onClick={() => setExpandedExamId((prev) => (prev === exam.id ? null : exam.id))}
+                      onClick={() =>
+                        setExpandedExamId((prev) => {
+                          const nextId = prev === exam.id ? null : exam.id;
+                          if (nextId) {
+                            void ensureExamStats(nextId);
+                          }
+                          return nextId;
+                        })
+                      }
                     >
                       <p className="min-w-0 text-sm font-semibold text-slate-800">{exam.title}</p>
                       <div className="flex items-center gap-2 shrink-0">
@@ -730,7 +746,15 @@ export default function MonthlyExamsPage() {
                             <span className="font-semibold text-sky-600">{stats.sentToRetakeCount}</span>
                           </div>
                         ) : (
-                          <span className="text-xs italic text-slate-400">Hisoblanmadi</span>
+                          <button
+                            type="button"
+                            className="text-xs italic text-indigo-600 hover:text-indigo-700"
+                            onClick={() => {
+                              void ensureExamStats(exam.id);
+                            }}
+                          >
+                            Yuklash
+                          </button>
                         )}
                       </td>
                       <td className="table-cell text-right">

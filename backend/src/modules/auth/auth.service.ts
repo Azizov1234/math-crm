@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { comparePassword } from '../../common/utils/password.util';
+import { comparePassword, hashPassword } from '../../common/utils/password.util';
 import { AuthRepository } from './auth.repository';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
@@ -114,6 +115,44 @@ export class AuthService {
     }
 
     return this.toSafeUser(user);
+  }
+
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+    requestMeta?: { ip?: string; userAgent?: string },
+  ) {
+    const user = await this.authRepository.findUserById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isCurrentPasswordValid = await comparePassword(dto.currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException("Joriy parol noto'g'ri");
+    }
+
+    if (dto.currentPassword === dto.newPassword) {
+      throw new BadRequestException('Yangi parol joriy parol bilan bir xil bo\'lmasligi kerak');
+    }
+
+    const saltRounds = this.configService.get<number>('app.bcryptSaltRounds') ?? 10;
+    const nextPasswordHash = await hashPassword(dto.newPassword, saltRounds);
+
+    await Promise.all([
+      this.authRepository.updatePassword(userId, nextPasswordHash),
+      this.authRepository.createActionLog({
+        userId,
+        role: user.role,
+        action: 'PASSWORD_CHANGED',
+        module: 'AUTH',
+        description: 'User changed password',
+        ipAddress: requestMeta?.ip,
+        userAgent: requestMeta?.userAgent,
+      }),
+    ]);
+
+    return { success: true };
   }
 
   private async generateTokens(payload: {

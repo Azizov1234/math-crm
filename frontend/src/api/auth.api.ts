@@ -13,4 +13,6 @@ export const authApi = {
     ),
   me: async () => unwrapResponse(await api.get<ApiEnvelope<any>>('/auth/me')),
   logout: async () => unwrapResponse(await api.post<ApiEnvelope<{ success: boolean }>>('/auth/logout')),
+  changePassword: async (data: { currentPassword: string; newPassword: string }) =>
+    unwrapResponse(await api.post<ApiEnvelope<{ success: boolean }>>('/auth/change-password', data)),
 };

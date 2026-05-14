@@ -63,18 +63,9 @@ async function main() {
 
   const branchMain = await prisma.branch.create({
     data: {
-      name: 'Main Branch',
+      name: 'Main Academy',
       address: 'Tashkent, Chilonzor',
       phone: '+998900001001',
-      status: Status.ACTIVE,
-    },
-  });
-
-  const branchTwo = await prisma.branch.create({
-    data: {
-      name: 'Branch 2',
-      address: 'Tashkent, Yunusobod',
-      phone: '+998900001002',
       status: Status.ACTIVE,
     },
   });
@@ -104,22 +95,9 @@ async function main() {
     },
   });
 
-  const adminBranch2 = await prisma.user.create({
-    data: {
-      fullName: 'Branch 2 Admin',
-      username: 'admin_branch2',
-      email: 'admin_branch2@academy.local',
-      phone: '+998900000003',
-      password: adminHash,
-      role: UserRole.ADMIN,
-      status: Status.ACTIVE,
-      branchId: branchTwo.id,
-    },
-  });
-
   const teachers: Array<{ id: string; branchId: string; fullName: string }> = [];
   for (let i = 1; i <= 10; i += 1) {
-    const branchId = i <= 5 ? branchMain.id : branchTwo.id;
+    const branchId = branchMain.id;
     const teacher = await prisma.teacher.create({
       data: {
         branchId,
@@ -136,7 +114,7 @@ async function main() {
 
   const courses: Array<{ id: string; branchId: string; name: string; monthlyPrice: number }> = [];
   for (let i = 1; i <= 8; i += 1) {
-    const branchId = i <= 4 ? branchMain.id : branchTwo.id;
+    const branchId = branchMain.id;
     const course = await prisma.course.create({
       data: {
         branchId,
@@ -153,7 +131,7 @@ async function main() {
 
   const groups: Array<{ id: string; branchId: string; courseId: string; monthlyFee: number; name: string }> = [];
   for (let i = 1; i <= 15; i += 1) {
-    const branchId = i <= 8 ? branchMain.id : branchTwo.id;
+    const branchId = branchMain.id;
     const branchCourses = courses.filter((item) => item.branchId === branchId);
     const branchTeachers = teachers.filter((item) => item.branchId === branchId);
     const course = randomFrom(branchCourses);
@@ -163,7 +141,7 @@ async function main() {
       data: {
         branchId,
         courseId: course.id,
-        name: `${branchId === branchMain.id ? 'M' : 'B2'}-Group-${i}`,
+        name: `Group-${i}`,
         lessonDays: randomFrom(['Mon/Wed/Fri', 'Tue/Thu/Sat', 'Mon/Thu']),
         lessonTime: randomFrom(['09:00', '11:00', '14:00', '16:00']),
         startDate: addMonths(new Date(), -2),
@@ -191,7 +169,7 @@ async function main() {
 
   const students: Array<{ id: string; branchId: string; status: Status; fullName: string }> = [];
   for (let i = 1; i <= 50; i += 1) {
-    const branchId = i <= 30 ? branchMain.id : branchTwo.id;
+    const branchId = branchMain.id;
     const status = i <= 40 ? Status.ACTIVE : Status.INACTIVE;
     const student = await prisma.student.create({
       data: {
@@ -264,7 +242,7 @@ async function main() {
         paymentForMonth: paidAt.getMonth() + 1,
         paymentForYear: paidAt.getFullYear(),
         note: isOverdue ? 'Historical payment' : 'Regular payment',
-        createdById: membership.branchId === branchMain.id ? adminMain.id : adminBranch2.id,
+        createdById: adminMain.id,
       },
     });
 
@@ -281,7 +259,7 @@ async function main() {
           paymentForMonth: secondPaidAt.getMonth() + 1,
           paymentForYear: secondPaidAt.getFullYear(),
           note: 'Additional payment',
-          createdById: membership.branchId === branchMain.id ? adminMain.id : adminBranch2.id,
+          createdById: adminMain.id,
         },
       });
 
@@ -315,7 +293,6 @@ async function main() {
   for (const exam of exams) {
     const groupStudents = memberships.filter((item) => item.groupId === exam.groupId).slice(0, 8);
     for (const membership of groupStudents) {
-      const createdById = exam.branchId === branchMain.id ? adminMain.id : adminBranch2.id;
       await prisma.monthlyExamResult.create({
         data: {
           examId: exam.id,
@@ -328,7 +305,7 @@ async function main() {
           ]),
           comment: 'Seeded monthly exam result',
           checkedAt: new Date(),
-          createdById,
+          createdById: adminMain.id,
         },
       });
     }
@@ -349,7 +326,7 @@ async function main() {
     { action: 'ADMIN_CREATED', module: 'ADMINS', description: 'Admin account created', userId: superadmin.id, role: UserRole.SUPERADMIN },
     { action: 'STUDENT_CREATED', module: 'STUDENTS', description: 'Student records created by seed', userId: adminMain.id, role: UserRole.ADMIN },
     { action: 'PAYMENT_CREATED', module: 'PAYMENTS', description: 'Payments created by seed', userId: adminMain.id, role: UserRole.ADMIN },
-    { action: 'MONTHLY_EXAM_CREATED', module: 'MONTHLY_EXAMS', description: 'Monthly exams created by seed', userId: adminBranch2.id, role: UserRole.ADMIN },
+    { action: 'MONTHLY_EXAM_CREATED', module: 'MONTHLY_EXAMS', description: 'Monthly exams created by seed', userId: adminMain.id, role: UserRole.ADMIN },
     { action: 'SETTINGS_UPDATED', module: 'SETTINGS', description: 'Settings initialized by seed', userId: superadmin.id, role: UserRole.SUPERADMIN },
   ];
 
@@ -366,7 +343,6 @@ async function main() {
   console.log('Login credentials:');
   console.log(`- superadmin / ${SUPERADMIN_PASSWORD}`);
   console.log('- admin_main / admin12345');
-  console.log('- admin_branch2 / admin12345');
 }
 
 main()

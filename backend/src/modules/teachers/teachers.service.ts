@@ -1,6 +1,7 @@
 ﻿import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Status, UserRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getDefaultBranch } from '../../common/utils/default-branch.util';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { FilterTeacherDto } from './dto/filter-teacher.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
@@ -35,21 +36,10 @@ export class TeachersService {
   }
 
   async create(dto: CreateTeacherDto, user: { id: string; role: UserRole; branchId?: string | null }) {
-    let targetBranchId = user.role === UserRole.ADMIN ? user.branchId : dto.branchId;
-    if (!targetBranchId && user.role === UserRole.SUPERADMIN) {
-      const defaultBranch = await this.prisma.branch.findFirst({
-        where: { deletedAt: null, status: { not: Status.DELETED } },
-        orderBy: { createdAt: 'asc' },
-        select: { id: true },
-      });
-      targetBranchId = defaultBranch?.id;
-    }
+    const defaultBranch = await getDefaultBranch(this.prisma);
+    const targetBranchId = user.role === UserRole.ADMIN ? user.branchId ?? defaultBranch.id : defaultBranch.id;
 
-    if (!targetBranchId) {
-      throw new BadRequestException('No active branch configured');
-    }
-
-    if (user.role === UserRole.ADMIN && dto.branchId && user.branchId !== dto.branchId) {
+    if (user.role === UserRole.ADMIN && dto.branchId && user.branchId && user.branchId !== dto.branchId) {
       throw new ForbiddenException('Admin can only create teacher in own branch');
     }
 

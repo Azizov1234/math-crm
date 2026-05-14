@@ -57,6 +57,10 @@ export class BranchesRepository {
     });
   }
 
+  countAll() {
+    return this.prisma.branch.count();
+  }
+
   update(id: string, data: Prisma.BranchUpdateInput) {
     return this.prisma.branch.update({ where: { id }, data });
   }

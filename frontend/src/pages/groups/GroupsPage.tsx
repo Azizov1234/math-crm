@@ -30,7 +30,7 @@ type GroupRow = {
   status: string;
 };
 
-type SelectOption = { id: string; name: string; monthlyPrice?: number; branchId?: string | null };
+type SelectOption = { id: string; name: string; monthlyPrice?: number };
 
 type GroupForm = {
   courseId: string;
@@ -174,14 +174,12 @@ export default function GroupsPage() {
           id: item.id,
           name: item.name,
           monthlyPrice: Number(item.monthlyPrice ?? 0),
-          branchId: item.branchId ?? item.branch?.id ?? null,
         })),
       );
       setTeachersOptions(
         (teachersResponse.data ?? []).map((item: any) => ({
           id: item.id,
           name: item.fullName,
-          branchId: item.branchId ?? item.branch?.id ?? null,
         })),
       );
     } catch (error) {
@@ -244,36 +242,9 @@ export default function GroupsPage() {
     return String(selectedCourse.monthlyPrice ?? '');
   };
 
-  const selectedCreateCourseBranchId = coursesOptions.find((course) => course.id === createForm.courseId)?.branchId ?? null;
-  const selectedEditCourseBranchId = coursesOptions.find((course) => course.id === editForm.courseId)?.branchId ?? null;
+  const visibleCreateTeachers = teachersOptions;
 
-  const visibleCreateTeachers = selectedCreateCourseBranchId
-    ? teachersOptions.filter((teacher) => teacher.branchId === selectedCreateCourseBranchId)
-    : teachersOptions;
-
-  const visibleEditTeachers = selectedEditCourseBranchId
-    ? teachersOptions.filter((teacher) => teacher.branchId === selectedEditCourseBranchId)
-    : teachersOptions;
-
-  useEffect(() => {
-    if (!selectedCreateCourseBranchId) return;
-    setCreateForm((prev) => ({
-      ...prev,
-      teacherIds: prev.teacherIds.filter((teacherId) =>
-        teachersOptions.some((teacher) => teacher.id === teacherId && teacher.branchId === selectedCreateCourseBranchId),
-      ),
-    }));
-  }, [selectedCreateCourseBranchId, teachersOptions]);
-
-  useEffect(() => {
-    if (!selectedEditCourseBranchId) return;
-    setEditForm((prev) => ({
-      ...prev,
-      teacherIds: prev.teacherIds.filter((teacherId) =>
-        teachersOptions.some((teacher) => teacher.id === teacherId && teacher.branchId === selectedEditCourseBranchId),
-      ),
-    }));
-  }, [selectedEditCourseBranchId, teachersOptions]);
+  const visibleEditTeachers = teachersOptions;
 
   const openEditModal = (group: GroupRow) => {
     setEditingGroupId(group.id);

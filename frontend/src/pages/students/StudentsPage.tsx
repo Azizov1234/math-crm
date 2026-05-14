@@ -11,6 +11,7 @@ import EmptyState from '@/components/common/EmptyState';
 import { Field, FormActions, inputCls, Modal, selectCls } from '@/components/common/Modal';
 import { formatDate } from '@/utils/formatDate';
 import { formatMoney } from '@/utils/formatMoney';
+import { isValidUzPhone, normalizeUzPhone } from '@/utils/phone';
 
 type StudentRow = {
   id: string;
@@ -23,19 +24,33 @@ type StudentRow = {
   groupName: string;
   courseName: string;
   monthlyFee: number;
+  lastPaymentDate?: string | null;
   nextPaymentDate?: string | null;
   paymentStatus: 'PAID' | 'DUE_SOON' | 'OVERDUE' | 'NO_PAYMENT';
   status: string;
 };
 
-function derivePaymentStatus(nextPaymentDate?: string | Date | null): StudentRow['paymentStatus'] {
+function derivePaymentStatus(
+  lastPaymentDate?: string | Date | null,
+  nextPaymentDate?: string | Date | null,
+): StudentRow['paymentStatus'] {
   if (!nextPaymentDate) return 'NO_PAYMENT';
+
   const due = new Date(nextPaymentDate);
   if (Number.isNaN(due.getTime())) return 'NO_PAYMENT';
 
-  const now = new Date();
+  const dueAtStartOfDay = new Date(due);
+  dueAtStartOfDay.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (!lastPaymentDate) {
+    return dueAtStartOfDay < today ? 'OVERDUE' : 'NO_PAYMENT';
+  }
+
   const day = 24 * 60 * 60 * 1000;
-  const diff = Math.ceil((due.getTime() - now.getTime()) / day);
+  const diff = Math.ceil((dueAtStartOfDay.getTime() - today.getTime()) / day);
 
   if (diff < 0) return 'OVERDUE';
   if (diff <= 5) return 'DUE_SOON';
@@ -48,6 +63,7 @@ function mapStudent(item: any): StudentRow {
   const billing =
     item.billings?.find((billingItem: any) => billingItem.groupId === group?.id) ??
     item.billings?.[0];
+  const lastPaymentDate = billing?.lastPaymentDate ?? null;
   const nextPaymentDate = billing?.nextPaymentDate ?? null;
 
   return {
@@ -61,8 +77,9 @@ function mapStudent(item: any): StudentRow {
     groupName: group?.name ?? '-',
     courseName: group?.course?.name ?? '-',
     monthlyFee: Number(billing?.monthlyFee ?? 0),
+    lastPaymentDate,
     nextPaymentDate,
-    paymentStatus: derivePaymentStatus(nextPaymentDate),
+    paymentStatus: derivePaymentStatus(lastPaymentDate, nextPaymentDate),
     status: item.status,
   };
 }
@@ -265,14 +282,38 @@ export default function StudentsPage() {
     }
   };
 
+  const normalizeAndValidatePhones = (phone: string, parentPhone: string) => {
+    const normalizedPhone = normalizeUzPhone(phone);
+    if (!isValidUzPhone(normalizedPhone)) {
+      toast.error("Telefon formati +998901234567 ko'rinishida bo'lishi kerak");
+      return null;
+    }
+
+    const parentRaw = parentPhone.trim();
+    if (!parentRaw) {
+      return { normalizedPhone, normalizedParentPhone: undefined as string | undefined };
+    }
+
+    const normalizedParentPhone = normalizeUzPhone(parentRaw);
+    if (!isValidUzPhone(normalizedParentPhone)) {
+      toast.error("Ota-ona telefoni +998901234567 ko'rinishida bo'lishi kerak");
+      return null;
+    }
+
+    return { normalizedPhone, normalizedParentPhone };
+  };
+
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const phonePayload = normalizeAndValidatePhones(createForm.phone, createForm.parentPhone);
+    if (!phonePayload) return;
+
     try {
       setCreateLoading(true);
       const payload: Record<string, any> = {
         fullName: createForm.fullName.trim(),
-        phone: createForm.phone.trim(),
-        parentPhone: createForm.parentPhone.trim() || undefined,
+        phone: phonePayload.normalizedPhone,
+        parentPhone: phonePayload.normalizedParentPhone,
         birthDate: createForm.birthDate || undefined,
         status: createForm.status,
       };
@@ -291,13 +332,15 @@ export default function StudentsPage() {
   const handleUpdate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editingStudentId) return;
+    const phonePayload = normalizeAndValidatePhones(editForm.phone, editForm.parentPhone);
+    if (!phonePayload) return;
 
     try {
       setEditLoading(true);
       const payload: Record<string, any> = {
         fullName: editForm.fullName.trim(),
-        phone: editForm.phone.trim(),
-        parentPhone: editForm.parentPhone.trim() || undefined,
+        phone: phonePayload.normalizedPhone,
+        parentPhone: phonePayload.normalizedParentPhone,
         birthDate: editForm.birthDate || undefined,
         status: editForm.status,
       };
@@ -579,18 +622,26 @@ export default function StudentsPage() {
 
           <Field label="Telefon" required>
             <input
+              type="tel"
+              inputMode="tel"
+              placeholder="+998901234567"
               className={inputCls}
               value={createForm.phone}
               onChange={(event) => setCreateForm((prev) => ({ ...prev, phone: event.target.value }))}
+              onBlur={() => setCreateForm((prev) => ({ ...prev, phone: normalizeUzPhone(prev.phone) }))}
               required
             />
           </Field>
 
           <Field label="Ota-ona telefoni">
             <input
+              type="tel"
+              inputMode="tel"
+              placeholder="+998901234567"
               className={inputCls}
               value={createForm.parentPhone}
               onChange={(event) => setCreateForm((prev) => ({ ...prev, parentPhone: event.target.value }))}
+              onBlur={() => setCreateForm((prev) => ({ ...prev, parentPhone: normalizeUzPhone(prev.parentPhone) }))}
             />
           </Field>
 
@@ -633,18 +684,26 @@ export default function StudentsPage() {
 
           <Field label="Telefon" required>
             <input
+              type="tel"
+              inputMode="tel"
+              placeholder="+998901234567"
               className={inputCls}
               value={editForm.phone}
               onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))}
+              onBlur={() => setEditForm((prev) => ({ ...prev, phone: normalizeUzPhone(prev.phone) }))}
               required
             />
           </Field>
 
           <Field label="Ota-ona telefoni">
             <input
+              type="tel"
+              inputMode="tel"
+              placeholder="+998901234567"
               className={inputCls}
               value={editForm.parentPhone}
               onChange={(event) => setEditForm((prev) => ({ ...prev, parentPhone: event.target.value }))}
+              onBlur={() => setEditForm((prev) => ({ ...prev, parentPhone: normalizeUzPhone(prev.parentPhone) }))}
             />
           </Field>
 
@@ -681,7 +740,7 @@ export default function StudentsPage() {
           <EmptyState icon={<Users />} title="Ma'lumot topilmadi" />
         ) : (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-xl bg-slate-50 p-3">
                 <p className="text-xs text-slate-500">F.I.O</p>
                 <p className="font-semibold text-slate-800">{detailsStudent.fullName}</p>
@@ -689,6 +748,10 @@ export default function StudentsPage() {
               <div className="rounded-xl bg-slate-50 p-3">
                 <p className="text-xs text-slate-500">Telefon</p>
                 <p className="font-semibold text-slate-800">{detailsStudent.phone || '-'}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs text-slate-500">Ota-ona telefoni</p>
+                <p className="font-semibold text-slate-800">{detailsStudent.parentPhone || '-'}</p>
               </div>
             </div>
 

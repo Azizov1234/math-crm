@@ -35,6 +35,16 @@ export class AuthRepository {
     });
   }
 
+  updatePassword(userId: string, password: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        password,
+        refreshTokenHash: null,
+      },
+    });
+  }
+
   createActionLog(data: {
     userId?: string;
     role?: string;

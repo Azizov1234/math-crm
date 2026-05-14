@@ -1,4 +1,20 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8020';
+function resolveApiBaseUrl() {
+  const envBase = String(import.meta.env.VITE_API_URL ?? '').trim();
+  if (envBase) {
+    return envBase;
+  }
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:8000';
+    }
+  }
+
+  return '/api';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export function resolveUploadUrl(rawUrl: string | null | undefined) {
   const value = String(rawUrl ?? '').trim();

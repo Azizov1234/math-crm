@@ -24,7 +24,7 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
 
-  app.useGlobalPipes(
+  app.useGlobalPipes( 
     new ValidationPipe({
       transform: true,
       whitelist: true,

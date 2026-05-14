@@ -14,6 +14,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DebtorsModule } from './modules/debtors/debtors.module';
 import { ExamResultsModule } from './modules/exam-results/exam-results.module';
 import { GroupsModule } from './modules/groups/groups.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
 import { MonthlyExamsModule } from './modules/monthly-exams/monthly-exams.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { SettingsModule } from './modules/settings/settings.module';
@@ -41,6 +42,7 @@ import { UsersModule } from './modules/users/users.module';
     CoursesModule,
     GroupsModule,
     PaymentsModule,
+    InvoicesModule,
     DebtorsModule,
     MonthlyExamsModule,
     ExamResultsModule,
@@ -53,6 +55,6 @@ import { UsersModule } from './modules/users/users.module';
   providers: [
     HttpExceptionFilter,
   ],
-})
+}) 
 export class AppModule {}
  

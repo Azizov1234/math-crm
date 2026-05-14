@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8030';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const AUTH_STORAGE_KEY = 'crm-auth-v2';
 
 export const api = axios.create({

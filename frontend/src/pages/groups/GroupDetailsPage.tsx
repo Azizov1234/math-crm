@@ -20,7 +20,6 @@ type StudentOption = {
   fullName: string;
   status: string;
   phone?: string | null;
-  branchId?: string | null;
 };
 
 type GroupStudentBilling = {
@@ -266,20 +265,16 @@ export default function GroupDetailsPage() {
       setAddStudentOptionsLoading(true);
       const response = await studentsApi.getStudentsForSelect();
       const existingStudentIds = new Set((students ?? []).map((item) => item.student?.id ?? item.studentId));
-      const groupBranchId = group?.branchId ?? group?.branch?.id ?? null;
-      const options = (response.data ?? [])
+      const rawOptions = (response.data ?? [])
         .map((item: any) => ({
           id: item.id,
           fullName: item.fullName,
           status: item.status,
           phone: item.phone,
-          branchId: item.branchId ?? item.branch?.id ?? null,
-        }))
-        .filter((item: StudentOption) => {
-          if (existingStudentIds.has(item.id)) return false;
-          if (!groupBranchId) return true;
-          return item.branchId === groupBranchId;
-        });
+        }));
+
+      const options = rawOptions.filter((item: StudentOption) => !existingStudentIds.has(item.id));
+
       setStudentOptions(options);
     } catch (error) {
       toast.error(getErrorMessage(error, "O'quvchi ro'yxatini yuklashda xatolik"));

@@ -9,6 +9,21 @@ import { FilterPaymentDto } from './dto/filter-payment.dto';
 export class PaymentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  private resolvePaymentPeriodStart(month: number | null | undefined, year: number | null | undefined, paidAt: Date) {
+    if (month && year) {
+      return startOfDay(new Date(year, month - 1, 1));
+    }
+    return startOfDay(paidAt);
+  }
+
+  private toMonthKey(date: Date) {
+    return `${date.getFullYear()}-${date.getMonth() + 1}`;
+  }
+
+  private minDate(dates: Date[]) {
+    return new Date(Math.min(...dates.map((item) => item.getTime())));
+  }
+
   async findAll(filter: FilterPaymentDto, user: { role: UserRole; branchId?: string | null }) {
     const { page = 1, limit = 20, search, sortBy = 'paidAt', sortOrder = 'desc' } = filter;
     const { skip, take } = buildPagination(page, limit);
@@ -233,13 +248,13 @@ export class PaymentsRepository {
         },
       });
 
+      const periodStart = this.resolvePaymentPeriodStart(payment.paymentForMonth, payment.paymentForYear, payment.paidAt);
+
       await tx.studentBilling.upsert({
         where: { studentId_groupId: { studentId: data.studentId, groupId: data.groupId } },
         update: {
           branchId: data.branchId,
           status: 'ACTIVE',
-          lastPaymentDate: data.paidAt,
-          nextPaymentDate: addOneCalendarMonth(data.paidAt),
         },
         create: {
           studentId: data.studentId,
@@ -250,11 +265,11 @@ export class PaymentsRepository {
           discountReason: data.discountReason ?? null,
           note: data.note ?? null,
           status: 'ACTIVE',
-          lastPaymentDate: data.paidAt,
-          nextPaymentDate: addOneCalendarMonth(data.paidAt),
+          nextPaymentDate: periodStart,
         },
       });
 
+      await this.refreshBillingByPaymentScheduleTx(tx, data.studentId, data.groupId, [periodStart]);
       await tx.actionLog.create({ data: data.actionLog });
       return payment;
     });
@@ -268,6 +283,19 @@ export class PaymentsRepository {
     actionLog: { userId?: string; role?: UserRole; action: string; module: string; description: string };
   }) {
     return this.prisma.$transaction(async (tx) => {
+      const previousPayment = await tx.payment.findUnique({
+        where: { id: data.paymentId },
+        select: {
+          paidAt: true,
+          paymentForMonth: true,
+          paymentForYear: true,
+        },
+      });
+
+      if (!previousPayment) {
+        throw new NotFoundException('Payment not found');
+      }
+
       const payment = await tx.payment.update({
         where: { id: data.paymentId },
         data: data.updateData,
@@ -279,7 +307,14 @@ export class PaymentsRepository {
         },
       });
 
-      await this.refreshBillingByLatestPaymentTx(tx, data.studentId, data.groupId);
+      const previousPeriod = this.resolvePaymentPeriodStart(
+        previousPayment.paymentForMonth,
+        previousPayment.paymentForYear,
+        previousPayment.paidAt,
+      );
+      const nextPeriod = this.resolvePaymentPeriodStart(payment.paymentForMonth, payment.paymentForYear, payment.paidAt);
+
+      await this.refreshBillingByPaymentScheduleTx(tx, data.studentId, data.groupId, [previousPeriod, nextPeriod]);
       await tx.actionLog.create({ data: data.actionLog });
 
       return payment;
@@ -293,39 +328,112 @@ export class PaymentsRepository {
     actionLog: { userId?: string; role?: UserRole; action: string; module: string; description: string };
   }) {
     return this.prisma.$transaction(async (tx) => {
+      const paymentBeforeDelete = await tx.payment.findUnique({
+        where: { id: data.paymentId },
+        select: {
+          paidAt: true,
+          paymentForMonth: true,
+          paymentForYear: true,
+        },
+      });
+
+      if (!paymentBeforeDelete) {
+        throw new NotFoundException('Payment not found');
+      }
+
       const payment = await tx.payment.update({
         where: { id: data.paymentId },
         data: { deletedAt: new Date() },
       });
 
-      await this.refreshBillingByLatestPaymentTx(tx, data.studentId, data.groupId);
+      const deletedPeriod = this.resolvePaymentPeriodStart(
+        paymentBeforeDelete.paymentForMonth,
+        paymentBeforeDelete.paymentForYear,
+        paymentBeforeDelete.paidAt,
+      );
+
+      await this.refreshBillingByPaymentScheduleTx(tx, data.studentId, data.groupId, [deletedPeriod]);
       await tx.actionLog.create({ data: data.actionLog });
 
       return payment;
     });
   }
 
-  private async refreshBillingByLatestPaymentTx(tx: Prisma.TransactionClient, studentId: string, groupId: string) {
-    const latest = await tx.payment.findFirst({
-      where: { studentId, groupId, deletedAt: null },
-      orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
-      select: { paidAt: true },
+  private async refreshBillingByPaymentScheduleTx(
+    tx: Prisma.TransactionClient,
+    studentId: string,
+    groupId: string,
+    anchorDates: Date[] = [],
+  ) {
+    const billing = await tx.studentBilling.findUnique({
+      where: { studentId_groupId: { studentId, groupId } },
+      select: { nextPaymentDate: true, monthlyFee: true },
     });
 
-    if (!latest) {
-      await tx.studentBilling.updateMany({
-        where: { studentId, groupId },
-        data: { lastPaymentDate: null, nextPaymentDate: null },
-      });
+    if (!billing) {
       return;
     }
 
-    await tx.studentBilling.updateMany({
-      where: { studentId, groupId },
+    const payments = await tx.payment.findMany({
+      where: { studentId, groupId, deletedAt: null },
+      select: {
+        amount: true,
+        paidAt: true,
+        paymentForMonth: true,
+        paymentForYear: true,
+      },
+    });
+
+    const normalizedAnchors: Date[] = anchorDates.map((item) => startOfDay(item));
+    if (billing.nextPaymentDate) {
+      normalizedAnchors.push(startOfDay(billing.nextPaymentDate));
+    }
+
+    if (normalizedAnchors.length === 0) {
+      if (payments.length > 0) {
+        for (const payment of payments) {
+          normalizedAnchors.push(
+            this.resolvePaymentPeriodStart(payment.paymentForMonth, payment.paymentForYear, payment.paidAt),
+          );
+        }
+      } else {
+        normalizedAnchors.push(startOfDay(new Date()));
+      }
+    }
+
+    let nextPaymentDate = this.minDate(normalizedAnchors);
+    const monthlyFee = Number(billing.monthlyFee ?? 0);
+    const paidByMonth = new Map<string, number>();
+    let latestPaidAt: Date | null = null;
+
+    for (const payment of payments) {
+      const period = this.resolvePaymentPeriodStart(payment.paymentForMonth, payment.paymentForYear, payment.paidAt);
+      const key = this.toMonthKey(period);
+      paidByMonth.set(key, (paidByMonth.get(key) ?? 0) + Number(payment.amount ?? 0));
+      if (!latestPaidAt || payment.paidAt > latestPaidAt) {
+        latestPaidAt = payment.paidAt;
+      }
+    }
+
+    if (monthlyFee > 0) {
+      const epsilon = 0.00001;
+      let guard = 0;
+      while (guard < 600) {
+        const monthPaid = paidByMonth.get(this.toMonthKey(nextPaymentDate)) ?? 0;
+        if (monthPaid + epsilon < monthlyFee) {
+          break;
+        }
+        nextPaymentDate = addOneCalendarMonth(nextPaymentDate);
+        guard += 1;
+      }
+    }
+
+    await tx.studentBilling.update({
+      where: { studentId_groupId: { studentId, groupId } },
       data: {
         status: 'ACTIVE',
-        lastPaymentDate: latest.paidAt,
-        nextPaymentDate: addOneCalendarMonth(latest.paidAt),
+        lastPaymentDate: latestPaidAt,
+        nextPaymentDate,
       },
     });
   }

@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ExamResultStatus, ExamStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getDefaultBranch } from '../../common/utils/default-branch.util';
 import { CreateExamResultDto } from './dto/create-exam-result.dto';
 import { CreateMonthlyExamDto } from './dto/create-monthly-exam.dto';
 import { FilterMonthlyExamDto } from './dto/filter-monthly-exam.dto';
@@ -56,21 +57,10 @@ export class MonthlyExamsService {
   }
 
   async create(dto: CreateMonthlyExamDto, user: { id: string; role: UserRole; branchId?: string | null }) {
-    let branchId = user.role === UserRole.ADMIN ? user.branchId : dto.branchId;
-    if (!branchId && user.role === UserRole.SUPERADMIN) {
-      const defaultBranch = await this.prisma.branch.findFirst({
-        where: { deletedAt: null, status: { not: 'DELETED' } },
-        orderBy: { createdAt: 'asc' },
-        select: { id: true },
-      });
-      branchId = defaultBranch?.id;
-    }
+    const defaultBranch = await getDefaultBranch(this.prisma);
+    const branchId = user.role === UserRole.ADMIN ? user.branchId ?? defaultBranch.id : defaultBranch.id;
 
-    if (!branchId) {
-      throw new BadRequestException('No active branch configured');
-    }
-
-    if (user.role === UserRole.ADMIN && dto.branchId && dto.branchId !== user.branchId) {
+    if (user.role === UserRole.ADMIN && dto.branchId && user.branchId && dto.branchId !== user.branchId) {
       throw new ForbiddenException('Admin can only create own branch exam');
     }
 

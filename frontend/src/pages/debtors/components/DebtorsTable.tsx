@@ -180,16 +180,26 @@ export default function DebtorsTable({
                         <p className="text-slate-400">Oylik to'lov</p>
                         <MoneyText amount={row.monthlyFeeTotal} className="font-semibold text-slate-700" />
                       </div>
-                      <div className="rounded-lg border border-slate-100 bg-rose-50/40 px-2 py-1.5">
-                        <p className="text-slate-400">Jami qarz</p>
-                        <MoneyText amount={row.totalDebt} className="font-bold text-rose-600" />
+                      <div className="relative pt-5">
+                        <Badge
+                          className={`absolute left-0 top-0 ${
+                            row.maxOverdueDays >= 20
+                              ? 'bg-rose-100 text-rose-700'
+                              : row.maxOverdueDays >= 10
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          } border-none`}
+                        >
+                          {row.maxOverdueDays} kun kechikkan
+                        </Badge>
+                        <div className="rounded-lg border border-slate-100 bg-rose-50/40 px-2 py-1.5">
+                          <p className="text-slate-400">Jami qarz</p>
+                          <MoneyText amount={row.totalDebt} className="font-bold text-rose-600" />
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <Badge className={`${row.maxOverdueDays >= 20 ? 'bg-rose-100 text-rose-700' : row.maxOverdueDays >= 10 ? 'bg-amber-100 text-amber-700' : 'bg-yellow-100 text-yellow-700'} border-none`}>
-                        {row.maxOverdueDays} kun kechikkan
-                      </Badge>
+                    <div className="flex items-center justify-end">
                       <div className="flex items-center gap-2">
                         <Button
                           variant="outline"

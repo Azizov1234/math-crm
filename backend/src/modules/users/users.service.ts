@@ -2,6 +2,7 @@
 import { ConfigService } from '@nestjs/config';
 import { Status, UserRole } from '@prisma/client';
 import { hashPassword } from '../../common/utils/password.util';
+import { getDefaultBranch } from '../../common/utils/default-branch.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { FilterUserDto } from './dto/filter-user.dto';
@@ -64,15 +65,8 @@ export class UsersService {
     const saltRounds = this.configService.get<number>('app.bcryptSaltRounds') ?? 10;
     const password = await hashPassword(dto.password, saltRounds);
 
-    let targetBranchId = dto.branchId;
-    if (!targetBranchId) {
-      const defaultBranch = await this.prisma.branch.findFirst({
-        where: { deletedAt: null, status: { not: Status.DELETED } },
-        orderBy: { createdAt: 'asc' },
-        select: { id: true },
-      });
-      targetBranchId = defaultBranch?.id;
-    }
+    const defaultBranch = await getDefaultBranch(this.prisma);
+    const targetBranchId = defaultBranch.id;
 
     const user = await this.usersRepository.create({
       fullName: dto.fullName,
