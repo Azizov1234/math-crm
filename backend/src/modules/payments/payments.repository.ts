@@ -273,7 +273,7 @@ export class PaymentsRepository {
         },
       });
 
-      await this.refreshBillingByPaymentScheduleTx(tx, data.studentId, data.groupId, [periodStart]);
+      await this.refreshBillingByPaymentScheduleTx(tx, data.studentId, data.groupId, [periodStart], 1);
       await tx.actionLog.create({ data: data.actionLog });
       return payment;
     });
@@ -368,6 +368,7 @@ export class PaymentsRepository {
     studentId: string,
     groupId: string,
     anchorDates: Date[] = [],
+    maxAdvanceMonths?: number,
   ) {
     const billing = await tx.studentBilling.findUnique({
       where: { studentId_groupId: { studentId, groupId } },
@@ -426,6 +427,17 @@ export class PaymentsRepository {
         }
         nextPaymentDate = addOneCalendarMonth(nextPaymentDate);
         guard += 1;
+      }
+    }
+
+    if (maxAdvanceMonths !== undefined && maxAdvanceMonths >= 0 && billing.nextPaymentDate) {
+      let maxDate = this.startOfMonth(billing.nextPaymentDate);
+      for (let i = 0; i < maxAdvanceMonths; i += 1) {
+        maxDate = addOneCalendarMonth(maxDate);
+      }
+
+      if (nextPaymentDate.getTime() > maxDate.getTime()) {
+        nextPaymentDate = maxDate;
       }
     }
 
