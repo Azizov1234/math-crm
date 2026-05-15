@@ -180,6 +180,13 @@ export class GroupsRepository {
     return this.prisma.student.findFirst({ where: { id: studentId, deletedAt: null, status: 'ACTIVE' } });
   }
 
+  updateStudentBranch(studentId: string, branchId: string) {
+    return this.prisma.student.update({
+      where: { id: studentId },
+      data: { branchId },
+    });
+  }
+
   findMembership(groupId: string, studentId: string) {
     return this.prisma.groupStudent.findFirst({ where: { groupId, studentId, status: 'ACTIVE' } });
   }

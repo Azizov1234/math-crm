@@ -277,7 +277,7 @@ export class GroupsService {
     }
 
     if (student.branchId !== group.branchId) {
-      throw new BadRequestException('Student branch must match group branch');
+      await this.groupsRepository.updateStudentBranch(student.id, group.branchId);
     }
 
     const existingMembership = await this.groupsRepository.findMembership(id, dto.studentId);

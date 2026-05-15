@@ -9,11 +9,15 @@ import { FilterPaymentDto } from './dto/filter-payment.dto';
 export class PaymentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  private startOfMonth(date: Date) {
+    return startOfDay(new Date(date.getFullYear(), date.getMonth(), 1));
+  }
+
   private resolvePaymentPeriodStart(month: number | null | undefined, year: number | null | undefined, paidAt: Date) {
     if (month && year) {
-      return startOfDay(new Date(year, month - 1, 1));
+      return this.startOfMonth(new Date(year, month - 1, 1));
     }
-    return startOfDay(paidAt);
+    return this.startOfMonth(paidAt);
   }
 
   private toMonthKey(date: Date) {
@@ -384,21 +388,18 @@ export class PaymentsRepository {
       },
     });
 
-    const normalizedAnchors: Date[] = anchorDates.map((item) => startOfDay(item));
+    const normalizedAnchors: Date[] = anchorDates.map((item) => this.startOfMonth(item));
     if (billing.nextPaymentDate) {
-      normalizedAnchors.push(startOfDay(billing.nextPaymentDate));
+      normalizedAnchors.push(this.startOfMonth(billing.nextPaymentDate));
+    }
+    for (const payment of payments) {
+      normalizedAnchors.push(
+        this.resolvePaymentPeriodStart(payment.paymentForMonth, payment.paymentForYear, payment.paidAt),
+      );
     }
 
     if (normalizedAnchors.length === 0) {
-      if (payments.length > 0) {
-        for (const payment of payments) {
-          normalizedAnchors.push(
-            this.resolvePaymentPeriodStart(payment.paymentForMonth, payment.paymentForYear, payment.paidAt),
-          );
-        }
-      } else {
-        normalizedAnchors.push(startOfDay(new Date()));
-      }
+      normalizedAnchors.push(this.startOfMonth(new Date()));
     }
 
     let nextPaymentDate = this.minDate(normalizedAnchors);
