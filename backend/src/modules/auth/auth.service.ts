@@ -18,12 +18,12 @@ export class AuthService {
   async login(dto: LoginDto, requestMeta?: { ip?: string; userAgent?: string }) {
     const user = await this.authRepository.findUserByIdentifier(dto.identifier);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Login yoki parol noto'g'ri.");
     }
 
     const isPasswordValid = await comparePassword(dto.password, user.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Login yoki parol noto'g'ri.");
     }
 
     const tokens = await this.generateTokens({
@@ -60,12 +60,12 @@ export class AuthService {
   async refresh(userId: string, refreshToken: string) {
     const user = await this.authRepository.findUserById(userId);
     if (!user || !user.refreshTokenHash) {
-      throw new UnauthorizedException('Refresh token is invalid');
+      throw new UnauthorizedException("Sessiya muddati tugagan yoki token noto'g'ri. Qayta kiring.");
     }
 
     const isRefreshTokenMatch = await bcrypt.compare(refreshToken, user.refreshTokenHash);
     if (!isRefreshTokenMatch) {
-      throw new UnauthorizedException('Refresh token is invalid');
+      throw new UnauthorizedException("Sessiya muddati tugagan yoki token noto'g'ri. Qayta kiring.");
     }
 
     const tokens = await this.generateTokens({
@@ -111,7 +111,7 @@ export class AuthService {
   async me(userId: string) {
     const user = await this.authRepository.findUserById(userId);
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('Foydalanuvchi topilmadi.');
     }
 
     return this.toSafeUser(user);
@@ -124,7 +124,7 @@ export class AuthService {
   ) {
     const user = await this.authRepository.findUserById(userId);
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('Foydalanuvchi topilmadi.');
     }
 
     const isCurrentPasswordValid = await comparePassword(dto.currentPassword, user.password);
