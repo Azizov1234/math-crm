@@ -59,11 +59,11 @@ export class PaymentsService {
   async getPayment(id: string, user: { role: UserRole; branchId?: string | null }) {
     const payment = await this.paymentsRepository.findById(id);
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException("To'lov topilmadi.");
     }
 
     if (user.role === UserRole.ADMIN && user.branchId !== payment.branchId) {
-      throw new ForbiddenException('Admin can only access own branch payments');
+      throw new ForbiddenException("Admin faqat o'z branchidagi to'lovlarni ko'ra oladi.");
     }
 
     return payment;
@@ -71,7 +71,7 @@ export class PaymentsService {
 
   async createPayment(dto: CreatePaymentDto, user: { id: string; role: UserRole; branchId?: string | null }) {
     if (dto.amount <= 0) {
-      throw new BadRequestException('Amount must be greater than 0');
+      throw new BadRequestException("To'lov summasi 0 dan katta bo'lishi kerak.");
     }
 
     const paymentForMonth = dto.paymentForMonth ?? dto.month;
@@ -84,23 +84,23 @@ export class PaymentsService {
     ]);
 
     if (!student) {
-      throw new BadRequestException('Student must be ACTIVE');
+      throw new BadRequestException("O'quvchi faol bo'lishi kerak.");
     }
 
     if (!group) {
-      throw new BadRequestException('Group must be ACTIVE');
+      throw new BadRequestException("Guruh faol bo'lishi kerak.");
     }
 
     if (!membership) {
-      throw new BadRequestException('Student must belong to the group');
+      throw new BadRequestException("O'quvchi tanlangan guruhga a'zo bo'lishi kerak.");
     }
 
     if (user.role === UserRole.ADMIN && user.branchId !== group.branchId) {
-      throw new ForbiddenException('Admin can only create payment in own branch');
+      throw new ForbiddenException("Admin faqat o'z branchida to'lov yarata oladi.");
     }
 
     if (student.branchId !== group.branchId) {
-      throw new BadRequestException('Student and Group branch mismatch');
+      throw new BadRequestException("O'quvchi va guruh branchlari mos emas.");
     }
 
     const paidAt = dto.paidAt ? new Date(dto.paidAt) : new Date();
@@ -154,7 +154,7 @@ export class PaymentsService {
     const payment = await this.getPayment(id, user);
 
     if (dto.amount !== undefined && dto.amount <= 0) {
-      throw new BadRequestException('Amount must be greater than 0');
+      throw new BadRequestException("To'lov summasi 0 dan katta bo'lishi kerak.");
     }
 
     if (

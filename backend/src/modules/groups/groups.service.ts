@@ -29,7 +29,7 @@ export class GroupsService {
 
     if (billingType === BillingType.DEFAULT) {
       if (params.monthlyFee !== undefined && Number(params.monthlyFee) !== groupMonthlyFee) {
-        throw new BadRequestException(`monthlyFee must equal group monthly fee (${groupMonthlyFee}) for DEFAULT billing`);
+        throw new BadRequestException(`DEFAULT to'lov turida oylik summa guruh narxiga teng bo'lishi kerak (${groupMonthlyFee}).`);
       }
 
       return {
@@ -42,7 +42,7 @@ export class GroupsService {
 
     if (billingType === BillingType.FREE) {
       if (params.monthlyFee !== undefined && Number(params.monthlyFee) !== 0) {
-        throw new BadRequestException('monthlyFee must be 0 for FREE billing');
+        throw new BadRequestException("Bepul to'lov turida oylik summa 0 bo'lishi kerak.");
       }
 
       return {
@@ -54,11 +54,11 @@ export class GroupsService {
     }
 
     if (params.monthlyFee === undefined) {
-      throw new BadRequestException('monthlyFee is required for INDIVIDUAL and DISCOUNTED billing types');
+      throw new BadRequestException("INDIVIDUAL yoki DISCOUNTED to'lov turida oylik summa majburiy.");
     }
 
     if (Number(params.monthlyFee) < 0) {
-      throw new BadRequestException('monthlyFee cannot be negative');
+      throw new BadRequestException("Oylik summa manfiy bo'lishi mumkin emas.");
     }
 
     return {
@@ -95,7 +95,7 @@ export class GroupsService {
 
   findAll(filter: FilterGroupDto, user: { role: UserRole; branchId?: string | null }) {
     if (filter.includeDeleted && user.role !== UserRole.SUPERADMIN) {
-      throw new ForbiddenException('Only superadmin can include deleted groups');
+      throw new ForbiddenException("O'chirilgan guruhlarni faqat superadmin ko'ra oladi.");
     }
 
     return this.groupsRepository.findAll(filter, user);
@@ -104,11 +104,11 @@ export class GroupsService {
   async findOne(id: string, user: { role: UserRole; branchId?: string | null }) {
     const group = await this.groupsRepository.findById(id);
     if (!group || group.deletedAt || group.status === Status.DELETED) {
-      throw new NotFoundException('Group not found');
+      throw new NotFoundException('Guruh topilmadi.');
     }
 
     if (user.role === UserRole.ADMIN && user.branchId !== group.branchId) {
-      throw new ForbiddenException('Admin can only access own branch groups');
+      throw new ForbiddenException("Admin faqat o'z branchidagi guruhlarni ko'ra oladi.");
     }
 
     return group;
@@ -118,17 +118,17 @@ export class GroupsService {
     const course = await this.groupsRepository.findActiveCourse(dto.courseId);
 
     if (!course) {
-      throw new BadRequestException('Course is not active or not found');
+      throw new BadRequestException('Kurs faol emas yoki topilmadi.');
     }
 
     let targetBranchId: string | null | undefined;
     if (user.role === UserRole.ADMIN) {
       if (dto.branchId && dto.branchId !== user.branchId) {
-        throw new ForbiddenException('Admin can only create own branch groups');
+        throw new ForbiddenException("Admin faqat o'z branchida guruh ocha oladi.");
       }
       targetBranchId = user.branchId;
       if (!targetBranchId) {
-        throw new BadRequestException('Admin branch is not configured');
+        throw new BadRequestException('Admin uchun branch biriktirilmagan.');
       }
     } else {
       // Single-branch style flow for superadmin: branch is auto-derived from selected course.
@@ -136,14 +136,14 @@ export class GroupsService {
     }
 
     if (course.branchId !== targetBranchId) {
-      throw new BadRequestException('Course must belong to selected branch');
+      throw new BadRequestException('Tanlangan kurs ushbu branchga tegishli emas.');
     }
 
     const uniqueTeacherIds = [...new Set(dto.teacherIds)];
     for (const teacherId of uniqueTeacherIds) {
       const teacher = await this.groupsRepository.findActiveTeacher(teacherId);
       if (!teacher) {
-        throw new BadRequestException(`Teacher with id ${teacherId} is not active or not found`);
+        throw new BadRequestException(`${teacherId} ID li o'qituvchi faol emas yoki topilmadi.`);
       }
     }
 
@@ -179,7 +179,7 @@ export class GroupsService {
     const existing = await this.findOne(id, user);
 
     if (user.role === UserRole.ADMIN && dto.branchId && dto.branchId !== user.branchId) {
-      throw new ForbiddenException('Admin can only set own branch');
+      throw new ForbiddenException("Admin faqat o'z branchini belgilashi mumkin.");
     }
 
     const nextBranchId = user.role === UserRole.ADMIN ? user.branchId ?? existing.branchId : dto.branchId ?? existing.branchId;
@@ -192,11 +192,11 @@ export class GroupsService {
       const course = await this.groupsRepository.findActiveCourse(nextCourseId);
 
       if (!course) {
-        throw new BadRequestException('Course is not active or not found');
+        throw new BadRequestException('Kurs faol emas yoki topilmadi.');
       }
 
       if (course.branchId !== nextBranchId) {
-        throw new BadRequestException('Course must belong to selected branch');
+        throw new BadRequestException('Tanlangan kurs ushbu branchga tegishli emas.');
       }
 
       if (nextTeacherIds.length > 0) {
@@ -204,7 +204,7 @@ export class GroupsService {
         for (const teacherId of uniqueTeacherIds) {
           const teacher = await this.groupsRepository.findActiveTeacher(teacherId);
           if (!teacher) {
-            throw new BadRequestException(`Teacher with id ${teacherId} is not active or not found`);
+            throw new BadRequestException(`${teacherId} ID li o'qituvchi faol emas yoki topilmadi.`);
           }
         }
       }
@@ -267,13 +267,13 @@ export class GroupsService {
   async addStudent(id: string, dto: AddStudentToGroupDto, user: { id?: string; role: UserRole; branchId?: string | null }) {
     const group = await this.findOne(id, user);
     if (group.status !== Status.ACTIVE) {
-      throw new BadRequestException('Group must be ACTIVE');
+      throw new BadRequestException("Guruh faol holatda bo'lishi kerak.");
     }
 
     const student = await this.groupsRepository.findActiveStudent(dto.studentId);
 
     if (!student) {
-      throw new NotFoundException('Student is not active or not found');
+      throw new NotFoundException("O'quvchi faol emas yoki topilmadi.");
     }
 
     if (student.branchId !== group.branchId) {
@@ -282,7 +282,7 @@ export class GroupsService {
 
     const existingMembership = await this.groupsRepository.findMembership(id, dto.studentId);
     if (existingMembership) {
-      throw new ConflictException('Student already active in this group');
+      throw new ConflictException("Bu o'quvchi ushbu guruhda allaqachon faol.");
     }
 
     const billingInput = this.resolveBillingInput({
@@ -328,22 +328,22 @@ export class GroupsService {
     user: { id?: string; role: UserRole; branchId?: string | null },
   ) {
     if (!dto.billingType) {
-      throw new BadRequestException('billingType is required');
+      throw new BadRequestException("To'lov turi (billingType) majburiy.");
     }
 
     const group = await this.findOne(groupId, user);
     if (group.status !== Status.ACTIVE) {
-      throw new BadRequestException('Group must be ACTIVE');
+      throw new BadRequestException("Guruh faol holatda bo'lishi kerak.");
     }
 
     const membership = await this.groupsRepository.findMembership(groupId, studentId);
     if (!membership) {
-      throw new NotFoundException('Active group membership not found');
+      throw new NotFoundException("Ushbu guruh uchun faol a'zolik topilmadi.");
     }
 
     const existingBilling = await this.groupsRepository.findStudentBilling(studentId, groupId);
     if (!existingBilling) {
-      throw new NotFoundException('Student billing not found for this group');
+      throw new NotFoundException("Ushbu guruh bo'yicha o'quvchi billing ma'lumoti topilmadi.");
     }
 
     const billingInput = this.resolveBillingInput({
@@ -382,7 +382,7 @@ export class GroupsService {
 
     const result = await this.groupsRepository.deactivateMembership(id, studentId);
     if (result.count === 0) {
-      throw new NotFoundException('Active group membership not found');
+      throw new NotFoundException("Ushbu guruh uchun faol a'zolik topilmadi.");
     }
 
     await this.groupsRepository.deactivateStudentBilling(studentId, id);
