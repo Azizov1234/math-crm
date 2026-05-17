@@ -79,6 +79,7 @@ async function main() {
       password: superadminHash,
       role: UserRole.SUPERADMIN,
       status: Status.ACTIVE,
+      branchId: branchMain.id,
     },
   });
 

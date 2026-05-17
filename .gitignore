@@ -18,6 +18,12 @@ dist/
 build/
 .next/
 coverage/
+*.tsbuildinfo
+
+# Generated local prisma build artifacts (keep only source .ts in prisma/)
+backend/prisma/*.js
+backend/prisma/*.js.map
+backend/prisma/*.d.ts
 
 # Environment files
 .env
