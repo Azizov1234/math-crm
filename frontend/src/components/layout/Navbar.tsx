@@ -1,14 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, ChevronRight, LogOut, User, Settings, ChevronDown, Moon, Sun } from 'lucide-react';
+import { Menu, ChevronRight, LogOut, User, Settings, ChevronDown } from 'lucide-react';
 import { authApi } from '@/api/auth.api';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import NameAvatar from '@/components/common/NameAvatar';
 
 interface NavbarProps { onMenuClick: () => void; }
-const THEME_STORAGE_KEY = 'crm-theme';
-type ThemeMode = 'light' | 'dark';
 
 export default function Navbar({ onMenuClick }: NavbarProps) {
   const { user, logout } = useAuthStore();
@@ -16,12 +14,6 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') return 'light';
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === 'dark' || stored === 'light') return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -34,11 +26,6 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', themeMode === 'dark');
-    localStorage.setItem(THEME_STORAGE_KEY, themeMode);
-  }, [themeMode]);
 
   const pageName = location.pathname.replace('/', '').split('/')[0].replace(/-/g, ' ') || 'Dashboard';
 
@@ -72,15 +59,6 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
 
       {/* Right */}
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => setThemeMode((prev) => (prev === 'light' ? 'dark' : 'light'))}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-          aria-label={themeMode === 'light' ? 'Tungi rejimga o`tish' : 'Kunduzgi rejimga o`tish'}
-          title={themeMode === 'light' ? 'Tungi rejim' : 'Kunduzgi rejim'}
-        >
-          {themeMode === 'light' ? <Moon size={17} /> : <Sun size={17} />}
-        </button>
-
         <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
 
         {/* User dropdown */}

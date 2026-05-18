@@ -135,7 +135,7 @@ export default function LoginPage() {
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                className="input-field"
+                className="input-field !bg-white !text-slate-900 !border-slate-200 dark:!bg-white dark:!text-slate-900 dark:!border-slate-200"
                 autoComplete="off"
               />
             </div>
@@ -146,7 +146,7 @@ export default function LoginPage() {
                   type={showPass ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="input-field pr-10"
+                  className="input-field pr-10 !bg-white !text-slate-900 !border-slate-200 dark:!bg-white dark:!text-slate-900 dark:!border-slate-200"
                   autoComplete="new-password"
                 />
                 <button
