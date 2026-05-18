@@ -35,12 +35,14 @@ export class GroupsController {
   }
 
   @Post()
+  @Roles(UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Create group' })
   create(@Body() dto: CreateGroupDto, @CurrentUser() user: { role: UserRole; branchId?: string | null }) {
     return this.groupsService.create(dto, user);
   }
 
   @Patch(':id')
+  @Roles(UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Update group' })
   update(
     @Param('id', ParseUuidPipe) id: string,
@@ -51,12 +53,14 @@ export class GroupsController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Soft delete group' })
   remove(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: { role: UserRole; branchId?: string | null }) {
     return this.groupsService.remove(id, user);
   }
 
   @Post(':id/students')
+  @Roles(UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Add student to group' })
   addStudent(
     @Param('id', ParseUuidPipe) id: string,
@@ -67,6 +71,7 @@ export class GroupsController {
   }
 
   @Patch(':id/students/:studentId/billing')
+  @Roles(UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Update student billing in group' })
   updateStudentBilling(
     @Param('id', ParseUuidPipe) id: string,
@@ -78,6 +83,7 @@ export class GroupsController {
   }
 
   @Delete(':id/students/:studentId')
+  @Roles(UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Remove student from group' })
   removeStudent(
     @Param('id', ParseUuidPipe) id: string,
@@ -94,18 +100,21 @@ export class GroupsController {
   }
 
   @Get(':id/payments')
+  @Roles(UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'List group payments' })
   listPayments(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: { role: UserRole; branchId?: string | null }) {
     return this.groupsService.listPayments(id, user);
   }
 
   @Get(':id/debtors')
+  @Roles(UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'List group debtors' })
   listDebtors(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: { role: UserRole; branchId?: string | null }) {
     return this.groupsService.listDebtors(id, user);
   }
 
   @Get(':id/exams')
+  @Roles(UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'List group monthly exams' })
   listExams(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: { role: UserRole; branchId?: string | null }) {
     return this.groupsService.listExams(id, user);

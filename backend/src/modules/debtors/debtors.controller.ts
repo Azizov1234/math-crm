@@ -13,7 +13,7 @@ import { FilterDebtorDto } from './dto/filter-debtor.dto';
 @ApiTags('Debtors')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, BranchAccessGuard)
-@Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+@Roles(UserRole.SUPERADMIN)
 @Controller('debtors')
 export class DebtorsController {
   constructor(private readonly debtorsService: DebtorsService) {}

@@ -14,7 +14,7 @@ import { InvoicesService } from './invoices.service';
 @ApiTags('Invoices')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, BranchAccessGuard)
-@Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+@Roles(UserRole.SUPERADMIN)
 @Controller('invoices')
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}

@@ -31,7 +31,7 @@ import { StudentsService } from './students.service';
 @ApiTags('Students')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, BranchAccessGuard)
-@Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+@Roles(UserRole.SUPERADMIN)
 @Controller('students')
 export class StudentsController {
   constructor(

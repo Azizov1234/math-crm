@@ -1,10 +1,17 @@
+const uzMoneyFormatter = new Intl.NumberFormat('uz-UZ', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+function normalizeUzNumber(value: number): string {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  return uzMoneyFormatter.format(safeValue).replace(/\u00A0/g, ' ');
+}
+
 export function formatMoney(amount: number, currency = "so'm"): string {
-  return `${amount.toLocaleString('uz-UZ')} ${currency}`;
+  return `${normalizeUzNumber(amount)} ${currency}`;
 }
 
 export function formatMoneyCompact(amount: number): string {
-  if (amount >= 1_000_000_000) return `${(amount/1_000_000_000).toFixed(1)}B so'm`;
-  if (amount >= 1_000_000) return `${(amount/1_000_000).toFixed(1)}M so'm`;
-  if (amount >= 1_000) return `${(amount/1_000).toFixed(0)}K so'm`;
-  return `${amount} so'm`;
+  return formatMoney(amount);
 }

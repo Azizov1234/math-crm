@@ -1,8 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import { getHomePathByRole } from '@/utils/roleNavigation';
 
 export default function ForbiddenPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4 animate-in fade-in zoom-in-95 duration-500">
@@ -13,7 +16,7 @@ export default function ForbiddenPage() {
       <p className="text-slate-500 mb-8 max-w-md mx-auto text-lg">
         Sizda ushbu sahifaga kirish uchun yetarli huquqlar mavjud emas. Agar bu xatolik deb hisoblasangiz, Super Admin bilan bog'laning.
       </p>
-      <button onClick={() => navigate('/dashboard')} className="btn-primary px-6 py-3 text-base">
+      <button onClick={() => navigate(getHomePathByRole(user?.role))} className="btn-primary px-6 py-3 text-base">
         <ArrowLeft size={18} /> Bosh sahifaga qaytish
       </button>
     </div>

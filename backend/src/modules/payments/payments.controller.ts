@@ -15,7 +15,7 @@ import { PaymentsService } from './payments.service';
 @ApiTags('Payments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, BranchAccessGuard)
-@Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+@Roles(UserRole.SUPERADMIN)
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}

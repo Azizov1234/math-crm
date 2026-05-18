@@ -24,7 +24,7 @@ const SUPERADMIN_ITEMS = [
 ];
 
 const ADMIN_ITEMS = SUPERADMIN_ITEMS.filter(
-  i => i.path !== '/admins' && i.path !== '/system-logs'
+  (i) => i.path === '/monthly-exams' || i.path === '/exam-results',
 );
 
 interface SidebarProps {

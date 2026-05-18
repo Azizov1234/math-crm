@@ -3,7 +3,9 @@
  *  1 331 826  →  "1 331 826"  (space-separated thousands)
  */
 export function fmtUzs(value: number): string {
-  return new Intl.NumberFormat('uz-UZ').format(Math.round(value));
+  return new Intl.NumberFormat('uz-UZ')
+    .format(Math.round(value))
+    .replace(/\u00A0/g, ' ');
 }
 
 /**

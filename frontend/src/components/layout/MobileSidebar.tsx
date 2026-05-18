@@ -19,7 +19,9 @@ const SUPERADMIN_ITEMS = [
   { name: 'Sozlamalar', path: '/settings', icon: Settings },
   { name: 'Tizim Loglari', path: '/system-logs', icon: ScrollText },
 ];
-const ADMIN_ITEMS = SUPERADMIN_ITEMS.filter(i => i.path !== '/admins' && i.path !== '/system-logs');
+const ADMIN_ITEMS = SUPERADMIN_ITEMS.filter(
+  (i) => i.path === '/monthly-exams' || i.path === '/exam-results',
+);
 
 interface Props { open: boolean; onClose: () => void; }
 

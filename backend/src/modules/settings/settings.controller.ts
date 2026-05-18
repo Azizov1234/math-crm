@@ -17,7 +17,7 @@ import { SettingsService } from './settings.service';
 @ApiTags('Settings')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, BranchAccessGuard)
-@Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+@Roles(UserRole.SUPERADMIN)
 @Controller('settings')
 export class SettingsController {
   constructor(

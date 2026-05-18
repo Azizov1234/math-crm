@@ -60,6 +60,8 @@ const EXAM_RESULT_LABELS: Record<(typeof EXAM_RESULT_ORDER)[number], string> = {
   SENT_TO_RETAKE: 'RETAKE',
 };
 
+const formatUzNumber = (value: number) => new Intl.NumberFormat('uz-UZ').format(value).replace(/\u00A0/g, ' ');
+
 type DashboardSummary = {
   totalStudents: number;
   activeStudents: number;
@@ -241,7 +243,7 @@ export default function DashboardPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <YAxis
-                tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`}
+                tickFormatter={(v) => formatUzNumber(Number(v))}
                 tick={{ fontSize: 11, fill: '#94a3b8' }}
                 axisLine={false}
                 tickLine={false}
@@ -340,7 +342,7 @@ export default function DashboardPage() {
                       <p className="mt-0.5 text-xs text-slate-400">{item.overdueDays} kun kechikdi</p>
                     </div>
                   </div>
-                  <span className="text-sm font-bold text-rose-600">{(item.debtAmount / 1000000).toFixed(1)}M</span>
+                  <span className="text-sm font-bold text-rose-600">{formatMoney(item.debtAmount)}</span>
                 </div>
               ))
             )}

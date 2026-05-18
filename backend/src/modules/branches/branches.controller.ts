@@ -19,7 +19,7 @@ import { UpdateBranchDto } from './dto/update-branch.dto';
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 
-  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+  @Roles(UserRole.SUPERADMIN)
   @Get()
   @ApiOperation({ summary: 'List branches' })
   findAll(
@@ -29,7 +29,7 @@ export class BranchesController {
     return this.branchesService.findAll(filter, user);
   }
 
-  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+  @Roles(UserRole.SUPERADMIN)
   @Get(':id')
   @ApiOperation({ summary: 'Get branch by id' })
   findOne(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: { role: UserRole; branchId?: string | null }) {

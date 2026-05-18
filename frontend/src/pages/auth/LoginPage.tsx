@@ -5,6 +5,7 @@ import { Eye, EyeOff, GraduationCap, Shield, BookOpen, Users, TrendingUp } from 
 import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
 import { getErrorMessage } from '@/api/http';
+import { getHomePathByRole } from '@/utils/roleNavigation';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ export default function LoginPage() {
       );
 
       toast.success(`Xush kelibsiz, ${result.user.fullName}!`);
-      navigate('/dashboard', { replace: true });
+      navigate(getHomePathByRole(result.user.role), { replace: true });
     } catch (error) {
       toast.error(getErrorMessage(error, "Noto'g'ri foydalanuvchi nomi yoki parol"));
     } finally {
@@ -127,7 +128,7 @@ export default function LoginPage() {
             <p className="text-slate-500 mt-1.5 text-sm">Foydalanuvchi nomi va parolingizni kiriting</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div>
               <label className="label">Foydalanuvchi nomi</label>
               <input
@@ -135,8 +136,7 @@ export default function LoginPage() {
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 className="input-field"
-                placeholder="superadmin"
-                autoComplete="username"
+                autoComplete="off"
               />
             </div>
             <div>
@@ -147,8 +147,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="input-field pr-10"
-                  placeholder="********"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"

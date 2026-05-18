@@ -1,8 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { FileQuestion, ArrowLeft } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import { getHomePathByRole } from '@/utils/roleNavigation';
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4 animate-in fade-in zoom-in-95 duration-500">
@@ -13,7 +16,7 @@ export default function NotFoundPage() {
       <p className="text-slate-500 mb-8 max-w-md mx-auto text-lg">
         Kechirasiz, siz qidirayotgan sahifa mavjud emas yoki o'chirilgan bo'lishi mumkin.
       </p>
-      <button onClick={() => navigate('/dashboard')} className="btn-primary px-6 py-3 text-base">
+      <button onClick={() => navigate(getHomePathByRole(user?.role))} className="btn-primary px-6 py-3 text-base">
         <ArrowLeft size={18} /> Bosh sahifaga qaytish
       </button>
     </div>

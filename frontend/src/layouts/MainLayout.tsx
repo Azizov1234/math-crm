@@ -10,7 +10,7 @@ import MobileSidebar from '@/components/layout/MobileSidebar';
 import { resolveUploadUrl } from '@/utils/resolveUploadUrl';
 
 export default function MainLayout() {
-  const { isAuthenticated, login, logout, updateUser } = useAuthStore();
+  const { isAuthenticated, user, login, logout, updateUser } = useAuthStore();
   const { updateSettings } = useSettingsStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -76,7 +76,7 @@ export default function MainLayout() {
     };
 
     const fetchSettings = async () => {
-      if (!isAuthenticated) return;
+      if (!isAuthenticated || user?.role !== 'SUPERADMIN') return;
       try {
         const settings = await settingsApi.getSettings();
         updateSettings({
@@ -96,16 +96,16 @@ export default function MainLayout() {
     return () => {
       active = false;
     };
-  }, [isAuthenticated, login, logout, updateSettings, updateUser]);
+  }, [isAuthenticated, user?.role, login, logout, updateSettings, updateUser]);
 
   if (authChecking && isAuthenticated) {
-    return <div className="min-h-screen bg-slate-50" />;
+    return <div className="min-h-screen bg-slate-50 dark:bg-slate-950" />;
   }
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
       {/* Desktop Sidebar */}
       <Sidebar collapsed={collapsed} onCollapse={setCollapsed} />
 

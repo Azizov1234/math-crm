@@ -5,6 +5,7 @@ import MainLayout from '@/layouts/MainLayout';
 import AuthLayout from '@/layouts/AuthLayout';
 import { useAuthStore } from '@/store/authStore';
 import LoadingSkeleton from '@/components/common/LoadingSkeleton';
+import { getHomePathByRole } from '@/utils/roleNavigation';
 
 // Lazy pages
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
@@ -37,6 +38,12 @@ function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RoleHomeRedirect() {
+  const { user, isAuthenticated } = useAuthStore();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <Navigate to={getHomePathByRole(user?.role)} replace />;
+}
+
 const SuspenseWrap = ({ children }: { children: React.ReactNode }) => (
   <Suspense fallback={<LoadingSkeleton />}>{children}</Suspense>
 );
@@ -53,21 +60,21 @@ export default function App() {
 
         {/* Protected routes */}
         <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<SuspenseWrap><DashboardPage /></SuspenseWrap>} />
+          <Route index element={<RoleHomeRedirect />} />
+          <Route path="/dashboard" element={<SuspenseWrap><RequireSuperAdmin><DashboardPage /></RequireSuperAdmin></SuspenseWrap>} />
           <Route path="/admins" element={<SuspenseWrap><RequireSuperAdmin><AdminsPage /></RequireSuperAdmin></SuspenseWrap>} />
-          <Route path="/students" element={<SuspenseWrap><StudentsPage /></SuspenseWrap>} />
-          <Route path="/teachers" element={<SuspenseWrap><TeachersPage /></SuspenseWrap>} />
-          <Route path="/courses" element={<SuspenseWrap><CoursesPage /></SuspenseWrap>} />
-          <Route path="/groups" element={<SuspenseWrap><GroupsPage /></SuspenseWrap>} />
-          <Route path="/groups/:id" element={<SuspenseWrap><GroupDetailsPage /></SuspenseWrap>} />
-          <Route path="/payments" element={<SuspenseWrap><PaymentsPage /></SuspenseWrap>} />
-          <Route path="/debtors" element={<SuspenseWrap><DebtorsPage /></SuspenseWrap>} />
+          <Route path="/students" element={<SuspenseWrap><RequireSuperAdmin><StudentsPage /></RequireSuperAdmin></SuspenseWrap>} />
+          <Route path="/teachers" element={<SuspenseWrap><RequireSuperAdmin><TeachersPage /></RequireSuperAdmin></SuspenseWrap>} />
+          <Route path="/courses" element={<SuspenseWrap><RequireSuperAdmin><CoursesPage /></RequireSuperAdmin></SuspenseWrap>} />
+          <Route path="/groups" element={<SuspenseWrap><RequireSuperAdmin><GroupsPage /></RequireSuperAdmin></SuspenseWrap>} />
+          <Route path="/groups/:id" element={<SuspenseWrap><RequireSuperAdmin><GroupDetailsPage /></RequireSuperAdmin></SuspenseWrap>} />
+          <Route path="/payments" element={<SuspenseWrap><RequireSuperAdmin><PaymentsPage /></RequireSuperAdmin></SuspenseWrap>} />
+          <Route path="/debtors" element={<SuspenseWrap><RequireSuperAdmin><DebtorsPage /></RequireSuperAdmin></SuspenseWrap>} />
           <Route path="/monthly-exams" element={<SuspenseWrap><MonthlyExamsPage /></SuspenseWrap>} />
           <Route path="/exam-results" element={<SuspenseWrap><ExamResultsPage /></SuspenseWrap>} />
-          <Route path="/settings" element={<SuspenseWrap><SettingsPage /></SuspenseWrap>} />
+          <Route path="/settings" element={<SuspenseWrap><RequireSuperAdmin><SettingsPage /></RequireSuperAdmin></SuspenseWrap>} />
           <Route path="/system-logs" element={<SuspenseWrap><RequireSuperAdmin><SystemLogsPage /></RequireSuperAdmin></SuspenseWrap>} />
-          <Route path="/profile" element={<SuspenseWrap><ProfilePage /></SuspenseWrap>} />
+          <Route path="/profile" element={<SuspenseWrap><RequireSuperAdmin><ProfilePage /></RequireSuperAdmin></SuspenseWrap>} />
         </Route>
 
         {/* Error pages */}

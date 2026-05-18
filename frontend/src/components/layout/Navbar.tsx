@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, Bell, Search, ChevronRight, LogOut, User, Settings, ChevronDown } from 'lucide-react';
+import { Menu, ChevronRight, LogOut, User, Settings, ChevronDown, Moon, Sun } from 'lucide-react';
 import { authApi } from '@/api/auth.api';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import NameAvatar from '@/components/common/NameAvatar';
 
 interface NavbarProps { onMenuClick: () => void; }
+const THEME_STORAGE_KEY = 'crm-theme';
+type ThemeMode = 'light' | 'dark';
 
 export default function Navbar({ onMenuClick }: NavbarProps) {
   const { user, logout } = useAuthStore();
@@ -14,6 +16,12 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') return 'light';
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'dark' || stored === 'light') return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -26,6 +34,11 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', themeMode === 'dark');
+    localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
 
   const pageName = location.pathname.replace('/', '').split('/')[0].replace(/-/g, ' ') || 'Dashboard';
 
@@ -40,85 +53,81 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 h-16 px-4 md:px-6 flex items-center justify-between shadow-sm">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 shadow-sm backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/90 md:px-6">
       {/* Left */}
       <div className="flex items-center gap-3">
         <button
-          className="md:hidden p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition"
+          className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 md:hidden"
           onClick={onMenuClick}
         >
           <Menu size={20} />
         </button>
 
-        <div className="hidden sm:flex items-center gap-1.5 text-sm text-slate-500">
-          <span className="font-medium text-slate-400">{settings.academyName}</span>
-          <ChevronRight size={14} className="text-slate-300" />
-          <span className="text-slate-800 font-semibold capitalize">{pageName}</span>
+        <div className="hidden items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 sm:flex">
+          <span className="font-medium text-slate-400 dark:text-slate-500">{settings.academyName}</span>
+          <ChevronRight size={14} className="text-slate-300 dark:text-slate-600" />
+          <span className="font-semibold capitalize text-slate-800 dark:text-slate-100">{pageName}</span>
         </div>
       </div>
 
       {/* Right */}
       <div className="flex items-center gap-2">
-        {/* Search */}
-        <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 w-56 group focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-300 transition-all">
-          <Search size={15} className="text-slate-400 flex-shrink-0" />
-          <input
-            type="text"
-            placeholder="Qidirish..."
-            className="flex-1 text-sm bg-transparent outline-none text-slate-700 placeholder-slate-400"
-          />
-          <kbd className="text-[10px] text-slate-400 border border-slate-200 rounded px-1 py-0.5 font-mono">Ctrl+K</kbd>
-        </div>
-
-        {/* Notifications */}
-        <button className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition">
-          <Bell size={18} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white" />
+        <button
+          onClick={() => setThemeMode((prev) => (prev === 'light' ? 'dark' : 'light'))}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          aria-label={themeMode === 'light' ? 'Tungi rejimga o`tish' : 'Kunduzgi rejimga o`tish'}
+          title={themeMode === 'light' ? 'Tungi rejim' : 'Kunduzgi rejim'}
+        >
+          {themeMode === 'light' ? <Moon size={17} /> : <Sun size={17} />}
         </button>
 
-        <div className="w-px h-6 bg-slate-200" />
+        <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
 
         {/* User dropdown */}
         <div ref={dropdownRef} className="relative">
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-100 transition-all duration-200 group"
+            className="group flex items-center gap-2.5 rounded-xl p-1.5 transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <NameAvatar fullName={user?.fullName} className="w-8 h-8 text-sm shadow-sm" />
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-semibold text-slate-800 leading-none">{user?.fullName}</p>
+              <p className="text-sm font-semibold leading-none text-slate-800 dark:text-slate-100">{user?.fullName}</p>
               <span className={`text-[11px] font-medium ${
                 user?.role === 'SUPERADMIN' ? 'text-violet-600' : 'text-indigo-600'
               }`}>{user?.role}</span>
             </div>
-            <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 dark:text-slate-500 ${dropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-                <p className="text-sm font-semibold text-slate-800">{user?.fullName}</p>
-                <p className="text-xs text-slate-500">{user?.email}</p>
+            <div className="animate-in slide-in-from-top-2 fade-in absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl duration-200 dark:border-slate-700 dark:bg-slate-900">
+              <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{user?.fullName}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{user?.email}</p>
               </div>
               <div className="py-1">
-                <button
-                  onClick={() => { navigate('/profile'); setDropdownOpen(false); }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition"
-                >
-                  <User size={15} className="text-slate-400" />
-                  Profil
-                </button>
-                <button
-                  onClick={() => { navigate('/settings'); setDropdownOpen(false); }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition"
-                >
-                  <Settings size={15} className="text-slate-400" />
-                  Sozlamalar
-                </button>
-                <div className="border-t border-slate-100 my-1" />
+                {user?.role === 'SUPERADMIN' && (
+                  <>
+                    <button
+                      onClick={() => { navigate('/profile'); setDropdownOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      <User size={15} className="text-slate-400" />
+                      Profil
+                    </button>
+                    <button
+                      onClick={() => { navigate('/settings'); setDropdownOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      <Settings size={15} className="text-slate-400" />
+                      Sozlamalar
+                    </button>
+                    <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
+                  </>
+                )}
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition"
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-950/30"
                 >
                   <LogOut size={15} />
                   Chiqish

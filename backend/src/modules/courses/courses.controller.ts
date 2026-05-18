@@ -33,14 +33,14 @@ export class CoursesController {
     return this.coursesService.findOne(id, user);
   }
 
-  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+  @Roles(UserRole.SUPERADMIN)
   @Post()
   @ApiOperation({ summary: 'Create course' })
   create(@Body() dto: CreateCourseDto, @CurrentUser() user: { role: UserRole; branchId?: string | null }) {
     return this.coursesService.create(dto, user);
   }
 
-  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+  @Roles(UserRole.SUPERADMIN)
   @Patch(':id')
   @ApiOperation({ summary: 'Update course' })
   update(
@@ -51,7 +51,7 @@ export class CoursesController {
     return this.coursesService.update(id, dto, user);
   }
 
-  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+  @Roles(UserRole.SUPERADMIN)
   @Delete(':id')
   @ApiOperation({ summary: 'Soft delete course' })
   remove(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: { role: UserRole; branchId?: string | null }) {
