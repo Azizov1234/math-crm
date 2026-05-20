@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ChevronDown, Eye, Plus, Search, Edit, UserX, UserCheck, Users } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Eye, Plus, Search, Edit, UserX, UserCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { studentsApi } from '@/api/students.api';
 import { getErrorMessage } from '@/api/http';
@@ -94,6 +94,10 @@ export default function StudentsPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('ACTIVE');
   const [filterPayment, setFilterPayment] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [deactivateId, setDeactivateId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
@@ -135,15 +139,24 @@ export default function StudentsPage() {
     try {
       setLoading(true);
       const params: Record<string, any> = {
-        page: 1,
-        limit: 50,
+        page,
+        limit,
         ...buildSharedParams(),
       };
 
       if (filterStatus && filterStatus !== 'ALL') params.status = filterStatus;
 
       const response = await studentsApi.getAll(params);
-      setStudents((response.data ?? []).map(mapStudent));
+      const rows = (response.data ?? []).map(mapStudent);
+      const meta = response.meta;
+      setStudents(rows);
+      setTotal(meta?.total ?? rows.length);
+      setTotalPages(Math.max(meta?.totalPages ?? 1, 1));
+
+      const metaPage = meta?.page ?? page;
+      if (metaPage !== page) {
+        setPage(metaPage);
+      }
     } catch (error) {
       toast.error(getErrorMessage(error, "O'quvchilarni yuklashda xatolik"));
     } finally {
@@ -179,7 +192,13 @@ export default function StudentsPage() {
   useEffect(() => {
     loadStudents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filterStatus, filterPayment]);
+  }, [page, limit, search, filterStatus, filterPayment]);
+
+  useEffect(() => {
+    if (!loading && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [loading, page, totalPages]);
 
   useEffect(() => {
     loadCounts();
@@ -200,6 +219,8 @@ export default function StudentsPage() {
       }),
     [students, filterPayment],
   );
+  const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endItem = total === 0 ? 0 : Math.min(page * limit, total);
 
   const handleDeactivate = async () => {
     if (!deactivateId) return;
@@ -378,7 +399,10 @@ export default function StudentsPage() {
         ].map(([value, label]) => (
           <button
             key={value}
-            onClick={() => setFilterStatus(value)}
+            onClick={() => {
+              setFilterStatus(value);
+              setPage(1);
+            }}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
               filterStatus === value ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'
             }`}
@@ -398,10 +422,20 @@ export default function StudentsPage() {
               placeholder="Ism, telefon bo'yicha..."
               className="input-field pl-9"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
-          <select className="select-field w-auto" value={filterPayment} onChange={(e) => setFilterPayment(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterPayment}
+            onChange={(e) => {
+              setFilterPayment(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">To'lov holati</option>
             <option value="PAID">To'langan</option>
             <option value="DUE_SOON">Yaqin</option>
@@ -596,7 +630,50 @@ export default function StudentsPage() {
           </table>
         </div>
 
-        <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400">{filtered.length} ta {students.length} dan ko'rsatilmoqda</div>
+        <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="text-xs text-slate-500">
+            {startItem}-{endItem} / {total} ta o'quvchi
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              className="select-field w-auto py-2 text-xs"
+              value={limit}
+              onChange={(event) => {
+                const nextLimit = Number(event.target.value);
+                setLimit(nextLimit);
+                setPage(1);
+              }}
+            >
+              <option value={20}>20 ta</option>
+              <option value={50}>50 ta</option>
+              <option value={100}>100 ta</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={page <= 1 || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              <ChevronLeft size={14} />
+              Oldingi
+            </button>
+
+            <span className="text-xs text-slate-500 px-1.5">
+              Sahifa {page} / {totalPages}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={page >= totalPages || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              Keyingi
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
       </div>
 
       <ConfirmDialog

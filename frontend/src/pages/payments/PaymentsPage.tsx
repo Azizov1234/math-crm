@@ -33,6 +33,13 @@ type PaymentRow = {
   createdBy: string;
 };
 
+type StudentOption = {
+  id: string;
+  fullName: string;
+  phone: string;
+  groupIds: string[];
+};
+
 function getPaymentStatus(amount: number, monthlyFee: number): 'PAID' | 'PARTIAL' {
   if (monthlyFee > 0 && amount < monthlyFee) {
     return 'PARTIAL';
@@ -94,7 +101,9 @@ export default function PaymentsPage() {
   const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(false);
-  const [students, setStudents] = useState<Array<{ id: string; fullName: string; groupIds: string[] }>>([]);
+  const [students, setStudents] = useState<StudentOption[]>([]);
+  const [studentSearchResults, setStudentSearchResults] = useState<StudentOption[] | null>(null);
+  const [studentSearchLoading, setStudentSearchLoading] = useState(false);
   const [groups, setGroups] = useState<Array<{ id: string; name: string; startDate?: string; endDate?: string | null; monthlyFee?: number }>>([]);
   const [groupMonths, setGroupMonths] = useState<Array<{ month: number; year: number; label: string }>>([]);
   const [paidMonths, setPaidMonths] = useState<Set<string>>(new Set());
@@ -127,6 +136,7 @@ export default function PaymentsPage() {
   const [groupDropOpen, setGroupDropOpen] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
   const [groupSearch, setGroupSearch] = useState('');
+  const studentSearchRequestIdRef = useRef(0);
   const studentDropRef = useRef<HTMLDivElement>(null);
   const groupDropRef = useRef<HTMLDivElement>(null);
 
@@ -181,6 +191,7 @@ export default function PaymentsPage() {
         (studentsResponse.data ?? []).map((item: any) => ({
           id: item.id,
           fullName: item.fullName,
+          phone: item.phone ?? '',
           groupIds: (item.groupMemberships ?? []).map((gm: any) => gm.groupId),
         })),
       );
@@ -206,6 +217,54 @@ export default function PaymentsPage() {
     loadPayments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, filterMethod, filterCourse]);
+
+  useEffect(() => {
+    if (!createOpen) {
+      return;
+    }
+
+    const normalizedSearch = studentSearch.trim();
+    if (!normalizedSearch) {
+      setStudentSearchResults(null);
+      setStudentSearchLoading(false);
+      return;
+    }
+
+    const requestId = ++studentSearchRequestIdRef.current;
+    setStudentSearchLoading(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await studentsApi.getAll({
+          page: 1,
+          limit: 100,
+          status: 'ACTIVE',
+          search: normalizedSearch,
+        });
+        if (studentSearchRequestIdRef.current !== requestId) {
+          return;
+        }
+        setStudentSearchResults(
+          (response.data ?? []).map((item: any) => ({
+            id: item.id,
+            fullName: item.fullName,
+            phone: item.phone ?? '',
+            groupIds: (item.groupMemberships ?? []).map((gm: any) => gm.groupId),
+          })),
+        );
+      } catch (error) {
+        if (studentSearchRequestIdRef.current === requestId) {
+          setStudentSearchResults([]);
+        }
+      } finally {
+        if (studentSearchRequestIdRef.current === requestId) {
+          setStudentSearchLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [createOpen, studentSearch]);
 
   useEffect(() => {
     if (expandedPaymentId && !payments.some((payment) => payment.id === expandedPaymentId)) {
@@ -293,13 +352,33 @@ export default function PaymentsPage() {
   const totalAmount = useMemo(() => payments.reduce((sum, payment) => sum + payment.amount, 0), [payments]);
 
   // Derived filtered lists for dropdowns
+  const combinedStudents = useMemo(() => {
+    const map = new Map<string, StudentOption>();
+    students.forEach((student) => map.set(student.id, student));
+    (studentSearchResults ?? []).forEach((student) => map.set(student.id, student));
+    return Array.from(map.values());
+  }, [students, studentSearchResults]);
+
+  const studentOptionsSource = studentSearchResults ?? students;
+
   const availableStudentsForDropdown = createForm.groupId
-    ? students.filter((s) => s.groupIds.includes(createForm.groupId))
-    : students;
+    ? studentOptionsSource.filter((s) => s.groupIds.includes(createForm.groupId))
+    : studentOptionsSource;
 
   const availableGroupsForDropdown = createForm.studentId
-    ? groups.filter((g) => students.find((s) => s.id === createForm.studentId)?.groupIds.includes(g.id))
+    ? groups.filter((g) => combinedStudents.find((s) => s.id === createForm.studentId)?.groupIds.includes(g.id))
     : groups;
+
+  const normalizedStudentSearch = studentSearch.trim().toLowerCase();
+  const visibleStudentsForDropdown = availableStudentsForDropdown.filter((student) => {
+    if (!normalizedStudentSearch) {
+      return true;
+    }
+    return (
+      student.fullName.toLowerCase().includes(normalizedStudentSearch) ||
+      student.phone.toLowerCase().includes(normalizedStudentSearch)
+    );
+  });
 
   const openCreateModal = async () => {
     const now = new Date();
@@ -316,6 +395,8 @@ export default function PaymentsPage() {
     setGroupMonths([]);
     setPaidMonths(new Set());
     setStudentSearch('');
+    setStudentSearchResults(null);
+    setStudentSearchLoading(false);
     setGroupSearch('');
     setStudentDropOpen(false);
     setGroupDropOpen(false);
@@ -645,7 +726,7 @@ export default function PaymentsPage() {
               >
                 <span className={createForm.studentId ? 'font-semibold text-slate-800' : 'text-slate-400'}>
                   {createForm.studentId
-                    ? students.find((s) => s.id === createForm.studentId)?.fullName
+                    ? combinedStudents.find((s) => s.id === createForm.studentId)?.fullName
                     : optionsLoading ? 'Yuklanmoqda...' : "O'quvchi tanlang..."}
                 </span>
                 <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${studentDropOpen ? 'rotate-180' : ''}`} />
@@ -666,9 +747,10 @@ export default function PaymentsPage() {
                     </div>
                   </div>
                   <div className="max-h-44 overflow-y-auto p-1.5 space-y-0.5">
-                    {availableStudentsForDropdown
-                      .filter((s) => s.fullName.toLowerCase().includes(studentSearch.toLowerCase()))
-                      .map((student) => (
+                    {studentSearchLoading && (
+                      <p className="px-3 py-2 text-xs text-slate-400">Qidirilmoqda...</p>
+                    )}
+                    {visibleStudentsForDropdown.map((student) => (
                         <button
                           type="button"
                           key={student.id}
@@ -683,7 +765,7 @@ export default function PaymentsPage() {
                           {student.fullName}
                         </button>
                       ))}
-                    {availableStudentsForDropdown.filter((s) => s.fullName.toLowerCase().includes(studentSearch.toLowerCase())).length === 0 && (
+                    {!studentSearchLoading && visibleStudentsForDropdown.length === 0 && (
                       <p className="px-3 py-2 text-xs text-slate-400">O'quvchi topilmadi</p>
                     )}
                   </div>

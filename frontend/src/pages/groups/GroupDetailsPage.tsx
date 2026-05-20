@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BadgePercent, ChevronDown, CircleDollarSign, Clock, DollarSign, Gift, Layers, Pencil, Plus, Search, UserMinus, Users } from 'lucide-react';
 import { toast } from 'sonner';
@@ -117,7 +117,10 @@ export default function GroupDetailsPage() {
   const [addStudentOptionsLoading, setAddStudentOptionsLoading] = useState(false);
   const [addStudentLoading, setAddStudentLoading] = useState(false);
   const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
+  const [studentSearchResults, setStudentSearchResults] = useState<StudentOption[] | null>(null);
+  const [studentSearchLoading, setStudentSearchLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
+  const studentSearchRequestIdRef = useRef(0);
   const [addForm, setAddForm] = useState<{
     studentIds: string[];
     billingType: BillingType;
@@ -214,15 +217,16 @@ export default function GroupDetailsPage() {
   }, [exams, expandedExamRowId]);
 
   const totalStudents = useMemo(() => students.length || Number(group?._count?.students ?? 0), [students.length, group]);
+  const studentOptionsSource = studentSearchResults ?? studentOptions;
   const filteredStudentOptions = useMemo(() => {
     const keyword = studentSearch.trim().toLowerCase();
-    if (!keyword) return studentOptions;
-    return studentOptions.filter((student) => {
+    if (!keyword) return studentOptionsSource;
+    return studentOptionsSource.filter((student) => {
       const name = student.fullName.toLowerCase();
       const phone = student.phone?.toLowerCase() ?? '';
       return name.includes(keyword) || phone.includes(keyword);
     });
-  }, [studentOptions, studentSearch]);
+  }, [studentOptionsSource, studentSearch]);
   const selectedStudentOptions = useMemo(
     () => studentOptions.filter((option) => addForm.studentIds.includes(option.id)),
     [studentOptions, addForm.studentIds],
@@ -250,10 +254,57 @@ export default function GroupDetailsPage() {
     }
   }, [editForm.billingType, editBillingOpen, groupMonthlyFee]);
 
+  useEffect(() => {
+    if (!addStudentOpen) return;
+
+    const keyword = studentSearch.trim();
+    if (!keyword) {
+      setStudentSearchResults(null);
+      setStudentSearchLoading(false);
+      return;
+    }
+
+    const requestId = ++studentSearchRequestIdRef.current;
+    setStudentSearchLoading(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await studentsApi.getStudentsForSelect(keyword);
+        if (studentSearchRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        const existingStudentIds = new Set((students ?? []).map((item) => item.student?.id ?? item.studentId));
+        const options = (response.data ?? [])
+          .map((item: any) => ({
+            id: item.id,
+            fullName: item.fullName,
+            status: item.status,
+            phone: item.phone,
+          }))
+          .filter((item: StudentOption) => !existingStudentIds.has(item.id));
+
+        setStudentSearchResults(options);
+      } catch (error) {
+        if (studentSearchRequestIdRef.current === requestId) {
+          setStudentSearchResults([]);
+        }
+      } finally {
+        if (studentSearchRequestIdRef.current === requestId) {
+          setStudentSearchLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [addStudentOpen, studentSearch, students]);
+
   const openAddStudentModal = async () => {
     if (!id) return;
     setAddStudentOpen(true);
     setStudentSearch('');
+    setStudentSearchResults(null);
+    setStudentSearchLoading(false);
     setAddForm({
       studentIds: [],
       billingType: 'DEFAULT',
@@ -836,6 +887,8 @@ export default function GroupDetailsPage() {
           <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
             {addStudentOptionsLoading ? (
               <p className="px-2 py-1 text-xs text-slate-500">O'quvchilar yuklanmoqda...</p>
+            ) : studentSearchLoading ? (
+              <p className="px-2 py-1 text-xs text-slate-500">Qidirilmoqda...</p>
             ) : filteredStudentOptions.length === 0 ? (
               <p className="px-2 py-1 text-xs text-slate-500">Biriktiriladigan o'quvchi topilmadi</p>
             ) : (
