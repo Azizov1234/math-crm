@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useMemo, useState, type FormEvent } from 'react';
-import { Plus, Search, Edit, CreditCard, Filter, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, Search, Edit, CreditCard, Filter, Trash2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { groupsApi } from '@/api/groups.api';
 import { getErrorMessage } from '@/api/http';
@@ -91,6 +91,10 @@ export default function PaymentsPage() {
   const [search, setSearch] = useState('');
   const [filterMethod, setFilterMethod] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -157,8 +161,8 @@ export default function PaymentsPage() {
     try {
       setLoading(true);
       const params: Record<string, any> = {
-        page: 1,
-        limit: 50,
+        page,
+        limit,
       };
 
       if (search) params.search = search;
@@ -166,7 +170,16 @@ export default function PaymentsPage() {
       if (filterCourse) params.courseId = filterCourse;
 
       const [list, summaryData] = await Promise.all([paymentsApi.getAll(params), paymentsApi.getSummary()]);
-      setPayments((list.data ?? []).map(mapPayment));
+      const rows = (list.data ?? []).map(mapPayment);
+      const meta = list.meta;
+      setPayments(rows);
+      setTotal(meta?.total ?? rows.length);
+      setTotalPages(Math.max(meta?.totalPages ?? 1, 1));
+
+      const metaPage = meta?.page ?? page;
+      if (metaPage !== page) {
+        setPage(metaPage);
+      }
       setSummary({
         cashTotal: Number(summaryData.cashTotal ?? 0),
         cardTotal: Number(summaryData.cardTotal ?? 0),
@@ -216,7 +229,13 @@ export default function PaymentsPage() {
   useEffect(() => {
     loadPayments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filterMethod, filterCourse]);
+  }, [page, limit, search, filterMethod, filterCourse]);
+
+  useEffect(() => {
+    if (!loading && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [loading, page, totalPages]);
 
   useEffect(() => {
     if (!createOpen) {
@@ -350,6 +369,8 @@ export default function PaymentsPage() {
     [payments],
   );
   const totalAmount = useMemo(() => payments.reduce((sum, payment) => sum + payment.amount, 0), [payments]);
+  const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endItem = total === 0 ? 0 : Math.min(page * limit, total);
 
   // Derived filtered lists for dropdowns
   const combinedStudents = useMemo(() => {
@@ -523,7 +544,7 @@ export default function PaymentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="To'lovlar"
-        subtitle={`Jami ${payments.length} ta to'lov, ${formatMoney(totalAmount)}`}
+        subtitle={`Jami ${total} ta to'lov, ${formatMoney(totalAmount)}`}
         icon={<CreditCard size={20} />}
         actions={
           <button className="btn-primary" onClick={openCreateModal}>
@@ -547,10 +568,20 @@ export default function PaymentsPage() {
               placeholder="O'quvchi ismi..."
               className="input-field pl-9"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
-          <select className="select-field w-auto" value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterCourse}
+            onChange={(e) => {
+              setFilterCourse(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Barcha kurslar</option>
             {courses.map((course) => (
               <option key={course.courseId} value={course.courseId}>
@@ -558,7 +589,14 @@ export default function PaymentsPage() {
               </option>
             ))}
           </select>
-          <select className="select-field w-auto" value={filterMethod} onChange={(e) => setFilterMethod(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterMethod}
+            onChange={(e) => {
+              setFilterMethod(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Barcha usullar</option>
             <option value="CASH">Naqd</option>
             <option value="CARD">Karta</option>
@@ -570,7 +608,7 @@ export default function PaymentsPage() {
           {!loading && payments.length === 0 ? (
             <EmptyState icon={<CreditCard />} title="To'lov topilmadi" />
           ) : (
-            payments.slice(0, 50).map((payment) => {
+            payments.map((payment) => {
               const isExpanded = expandedPaymentId === payment.id;
 
               return (
@@ -675,7 +713,7 @@ export default function PaymentsPage() {
                   </td>
                 </tr>
               ) : (
-                payments.slice(0, 50).map((payment) => (
+                payments.map((payment) => (
                   <tr key={payment.id} className="table-row">
                     <td className="table-cell font-medium text-slate-800">{payment.studentName}</td>
                     <td className="table-cell">
@@ -706,8 +744,49 @@ export default function PaymentsPage() {
             </tbody>
           </table>
         </div>
-        <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400 text-center bg-slate-50">
-          Oxirgi 50 ta to'lov ko'rsatilmoqda (Jami {payments.length})
+        <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50">
+          <p className="text-xs text-slate-500">
+            {startItem}-{endItem} / {total} ta to'lov
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              className="select-field w-auto py-2 text-xs"
+              value={limit}
+              onChange={(event) => {
+                const nextLimit = Number(event.target.value);
+                setLimit(nextLimit);
+                setPage(1);
+              }}
+            >
+              <option value={20}>20 ta</option>
+              <option value={50}>50 ta</option>
+              <option value={100}>100 ta</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={page <= 1 || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              <ChevronLeft size={14} />
+              Oldingi
+            </button>
+
+            <span className="text-xs text-slate-500 px-1.5">
+              Sahifa {page} / {totalPages}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={page >= totalPages || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              Keyingi
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Plus, Search, Edit, Trash2, BookOpen, ChevronDown } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, BookOpen, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { coursesApi } from '@/api/courses.api';
 import { getErrorMessage } from '@/api/http';
@@ -41,6 +41,10 @@ export default function CoursesPage() {
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -68,12 +72,21 @@ export default function CoursesPage() {
     try {
       setLoading(true);
       const response = await coursesApi.getAll({
-        page: 1,
-        limit: 50,
+        page,
+        limit,
         search: search || undefined,
         status: filterStatus || undefined,
       });
-      setCourses((response.data ?? []).map(mapCourse));
+      const rows = (response.data ?? []).map(mapCourse);
+      const meta = response.meta;
+      setCourses(rows);
+      setTotal(meta?.total ?? rows.length);
+      setTotalPages(Math.max(meta?.totalPages ?? 1, 1));
+
+      const metaPage = meta?.page ?? page;
+      if (metaPage !== page) {
+        setPage(metaPage);
+      }
     } catch (error) {
       toast.error(getErrorMessage(error, 'Kurslarni yuklashda xatolik'));
     } finally {
@@ -84,9 +97,17 @@ export default function CoursesPage() {
   useEffect(() => {
     loadCourses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filterStatus]);
+  }, [page, limit, search, filterStatus]);
+
+  useEffect(() => {
+    if (!loading && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [loading, page, totalPages]);
 
   const filtered = useMemo(() => courses, [courses]);
+  const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endItem = total === 0 ? 0 : Math.min(page * limit, total);
 
   useEffect(() => {
     if (expandedCourseId && !filtered.some((course) => course.id === expandedCourseId)) {
@@ -202,7 +223,7 @@ export default function CoursesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Kurslar"
-        subtitle={`Jami ${courses.length} ta kurs`}
+        subtitle={`Jami ${total} ta kurs`}
         icon={<BookOpen size={20} />}
         actions={
           <button className="btn-primary" onClick={openCreateModal}>
@@ -212,7 +233,7 @@ export default function CoursesPage() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Jami kurslar" value={courses.length} icon={<BookOpen />} color="indigo" />
+        <StatCard title="Jami kurslar" value={total} icon={<BookOpen />} color="indigo" />
         <StatCard title="Faol kurslar" value={courses.filter((course) => course.status === 'ACTIVE').length} icon={<BookOpen />} color="emerald" />
         <StatCard title="Jami guruhlar" value={courses.reduce((sum, course) => sum + course.groupsCount, 0)} icon={<BookOpen />} color="sky" />
         <StatCard
@@ -233,10 +254,20 @@ export default function CoursesPage() {
               placeholder="Kurs nomi bo'yicha..."
               className="input-field pl-9"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
-          <select className="select-field w-auto" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Barcha statuslar</option>
             <option value="ACTIVE">Faol</option>
             <option value="INACTIVE">Nofaol</option>
@@ -382,6 +413,50 @@ export default function CoursesPage() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="text-xs text-slate-500">
+            {startItem}-{endItem} / {total} ta kurs
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              className="select-field w-auto py-2 text-xs"
+              value={limit}
+              onChange={(event) => {
+                const nextLimit = Number(event.target.value);
+                setLimit(nextLimit);
+                setPage(1);
+              }}
+            >
+              <option value={20}>20 ta</option>
+              <option value={50}>50 ta</option>
+              <option value={100}>100 ta</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={page <= 1 || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              <ChevronLeft size={14} />
+              Oldingi
+            </button>
+
+            <span className="text-xs text-slate-500 px-1.5">
+              Sahifa {page} / {totalPages}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={page >= totalPages || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              Keyingi
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
 

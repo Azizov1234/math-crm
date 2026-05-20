@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ChevronDown, ClipboardList, Edit2, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Edit2, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { examResultsApi } from '@/api/examResults.api';
 import { getErrorMessage } from '@/api/http';
@@ -113,6 +113,10 @@ export default function ExamResultsPage() {
   const [search, setSearch] = useState('');
   const [filterExam, setFilterExam] = useState('');
   const [filterResult, setFilterResult] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [expandedResultId, setExpandedResultId] = useState<string | null>(null);
 
@@ -174,13 +178,22 @@ export default function ExamResultsPage() {
     try {
       setLoading(true);
       const response = await examResultsApi.getAll({
-        page: 1,
-        limit: 50,
+        page,
+        limit,
         search: search || undefined,
         examId: filterExam || undefined,
         result: filterResult || undefined,
       });
-      setResults((response.data ?? []).map(mapResult));
+      const rows = (response.data ?? []).map(mapResult);
+      const meta = response.meta;
+      setResults(rows);
+      setTotal(meta?.total ?? rows.length);
+      setTotalPages(Math.max(meta?.totalPages ?? 1, 1));
+
+      const metaPage = meta?.page ?? page;
+      if (metaPage !== page) {
+        setPage(metaPage);
+      }
     } catch (error) {
       toast.error(getErrorMessage(error, 'Imtihon natijalarini yuklashda xatolik'));
       console.error(error);
@@ -219,7 +232,13 @@ export default function ExamResultsPage() {
   useEffect(() => {
     loadResults();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filterExam, filterResult]);
+  }, [page, limit, search, filterExam, filterResult]);
+
+  useEffect(() => {
+    if (!loading && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [loading, page, totalPages]);
 
   useEffect(() => {
     if (expandedResultId && !results.some((result) => result.id === expandedResultId)) {
@@ -239,6 +258,8 @@ export default function ExamResultsPage() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+  const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endItem = total === 0 ? 0 : Math.min(page * limit, total);
 
   const openAddModal = async () => {
     const defaultExamId = addForm.examId || filterExam || examOptions[0]?.id || '';
@@ -361,7 +382,7 @@ export default function ExamResultsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Imtihon Natijalari"
-        subtitle={`Jami ${results.length} ta natija`}
+        subtitle={`Jami ${total} ta natija`}
         icon={<ClipboardList size={20} />}
         actions={
           <button className="btn-primary" onClick={openAddModal}>
@@ -379,10 +400,20 @@ export default function ExamResultsPage() {
               placeholder="O'quvchi ismi..."
               className="input-field pl-9"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
-          <select className="select-field w-auto" value={filterExam} onChange={(e) => setFilterExam(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterExam}
+            onChange={(e) => {
+              setFilterExam(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Barcha imtihonlar</option>
             {examOptions.map((exam) => (
               <option key={exam.id} value={exam.id}>
@@ -390,7 +421,14 @@ export default function ExamResultsPage() {
               </option>
             ))}
           </select>
-          <select className="select-field w-auto" value={filterResult} onChange={(e) => setFilterResult(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterResult}
+            onChange={(e) => {
+              setFilterResult(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Barcha natijalar</option>
             <option value="PASSED">O'tdi</option>
             <option value="FAILED">O'tmadi</option>
@@ -521,6 +559,50 @@ export default function ExamResultsPage() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="text-xs text-slate-500">
+            {startItem}-{endItem} / {total} ta natija
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              className="select-field w-auto py-2 text-xs"
+              value={limit}
+              onChange={(event) => {
+                const nextLimit = Number(event.target.value);
+                setLimit(nextLimit);
+                setPage(1);
+              }}
+            >
+              <option value={20}>20 ta</option>
+              <option value={50}>50 ta</option>
+              <option value={100}>100 ta</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={page <= 1 || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              <ChevronLeft size={14} />
+              Oldingi
+            </button>
+
+            <span className="text-xs text-slate-500 px-1.5">
+              Sahifa {page} / {totalPages}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={page >= totalPages || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              Keyingi
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
 

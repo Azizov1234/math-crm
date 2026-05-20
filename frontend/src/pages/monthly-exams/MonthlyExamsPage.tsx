@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { CalendarCheck, ChevronDown, Edit, Eye, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { CalendarCheck, ChevronDown, ChevronLeft, ChevronRight, Edit, Eye, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { coursesApi } from '@/api/courses.api';
 import { groupsApi } from '@/api/groups.api';
@@ -131,6 +131,10 @@ export default function MonthlyExamsPage() {
   const [search, setSearch] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
   const [coursesOptions, setCoursesOptions] = useState<SelectOption[]>([]);
@@ -211,15 +215,24 @@ export default function MonthlyExamsPage() {
     try {
       setLoading(true);
       const response = await monthlyExamsApi.getAll({
-        page: 1,
-        limit: 50,
+        page,
+        limit,
         search: search || undefined,
         courseId: filterCourse || undefined,
         status: filterStatus || undefined,
       });
 
       const mapped = (response.data ?? []).map(mapExam);
+      const meta = response.meta;
       setExams(mapped);
+      setTotal(meta?.total ?? mapped.length);
+      setTotalPages(Math.max(meta?.totalPages ?? 1, 1));
+
+      const metaPage = meta?.page ?? page;
+      if (metaPage !== page) {
+        setPage(metaPage);
+      }
+
       setStatsMap((prev) =>
         Object.fromEntries(mapped.filter((exam) => exam.id in prev).map((exam) => [exam.id, prev[exam.id]])),
       );
@@ -304,7 +317,13 @@ export default function MonthlyExamsPage() {
   useEffect(() => {
     loadExams();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filterCourse, filterStatus]);
+  }, [page, limit, search, filterCourse, filterStatus]);
+
+  useEffect(() => {
+    if (!loading && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [loading, page, totalPages]);
 
   useEffect(() => {
     loadSelectOptions();
@@ -352,6 +371,9 @@ export default function MonthlyExamsPage() {
     if (!keyword) return groupStudents;
     return groupStudents.filter((student) => student.fullName.toLowerCase().includes(keyword));
   }, [groupStudents, addResultSearch]);
+
+  const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endItem = total === 0 ? 0 : Math.min(page * limit, total);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -568,7 +590,7 @@ export default function MonthlyExamsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Oylik Imtihonlar"
-        subtitle={`Jami ${exams.length} ta imtihon`}
+        subtitle={`Jami ${total} ta imtihon`}
         icon={<CalendarCheck size={20} />}
         actions={
           <button className="btn-primary" onClick={openCreateModal}>
@@ -586,10 +608,20 @@ export default function MonthlyExamsPage() {
               placeholder="Sarlavha yoki guruh..."
               className="input-field pl-9"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
-          <select className="select-field w-auto" value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterCourse}
+            onChange={(e) => {
+              setFilterCourse(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Barcha kurslar</option>
             {courses.map((course) => (
               <option key={course.courseId} value={course.courseId}>
@@ -597,7 +629,14 @@ export default function MonthlyExamsPage() {
               </option>
             ))}
           </select>
-          <select className="select-field w-auto" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Barcha holatlar</option>
             <option value="SCHEDULED">Rejalashtirilgan</option>
             <option value="FINISHED">Yakunlangan</option>
@@ -772,6 +811,50 @@ export default function MonthlyExamsPage() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="border-t border-slate-100 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="text-xs text-slate-500">
+            {startItem}-{endItem} / {total} ta imtihon
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              className="select-field w-auto py-2 text-xs"
+              value={limit}
+              onChange={(event) => {
+                const nextLimit = Number(event.target.value);
+                setLimit(nextLimit);
+                setPage(1);
+              }}
+            >
+              <option value={20}>20 ta</option>
+              <option value={50}>50 ta</option>
+              <option value={100}>100 ta</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={page <= 1 || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              <ChevronLeft size={14} />
+              Oldingi
+            </button>
+
+            <span className="text-xs text-slate-500 px-1.5">
+              Sahifa {page} / {totalPages}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={page >= totalPages || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              Keyingi
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
 

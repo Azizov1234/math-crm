@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Edit, Eye, Layers, Plus, Search, Trash2, UserPlus } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Edit, Eye, Layers, Plus, Search, Trash2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { coursesApi } from '@/api/courses.api';
 import { getErrorMessage } from '@/api/http';
@@ -90,6 +90,10 @@ export default function GroupsPage() {
   const [filterCourse, setFilterCourse] = useState('');
   const [filterTeacher, setFilterTeacher] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -146,14 +150,23 @@ export default function GroupsPage() {
     try {
       setLoading(true);
       const response = await groupsApi.getAll({
-        page: 1,
-        limit: 50,
+        page,
+        limit,
         search: search || undefined,
         courseId: filterCourse || undefined,
         teacherId: filterTeacher || undefined,
         status: filterStatus || undefined,
       });
-      setGroups((response.data ?? []).map(mapGroup));
+      const rows = (response.data ?? []).map(mapGroup);
+      const meta = response.meta;
+      setGroups(rows);
+      setTotal(meta?.total ?? rows.length);
+      setTotalPages(Math.max(meta?.totalPages ?? 1, 1));
+
+      const metaPage = meta?.page ?? page;
+      if (metaPage !== page) {
+        setPage(metaPage);
+      }
     } catch (error) {
       toast.error(getErrorMessage(error, 'Guruhlarni yuklashda xatolik'));
     } finally {
@@ -193,7 +206,13 @@ export default function GroupsPage() {
   useEffect(() => {
     loadGroups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filterCourse, filterTeacher, filterStatus]);
+  }, [page, limit, search, filterCourse, filterTeacher, filterStatus]);
+
+  useEffect(() => {
+    if (!loading && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [loading, page, totalPages]);
 
   useEffect(() => {
     loadSelectOptions();
@@ -204,6 +223,8 @@ export default function GroupsPage() {
       setExpandedGroupId(null);
     }
   }, [groups, expandedGroupId]);
+  const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endItem = total === 0 ? 0 : Math.min(page * limit, total);
 
   const makeCreatePayload = (form: GroupForm) => ({
     courseId: form.courseId,
@@ -315,7 +336,7 @@ export default function GroupsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Guruhlar"
-        subtitle={`Jami ${groups.length} ta, ${groups.filter((group) => group.status === 'ACTIVE').length} ta faol`}
+        subtitle={`Jami ${total} ta guruh`}
         icon={<Layers size={20} />}
         actions={
           <button className="btn-primary" onClick={openCreateModal}>
@@ -333,10 +354,20 @@ export default function GroupsPage() {
               placeholder="Guruh nomi..."
               className="input-field pl-9"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
-          <select className="select-field w-auto" value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterCourse}
+            onChange={(e) => {
+              setFilterCourse(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Barcha kurslar</option>
             {coursesOptions.map((course) => (
               <option key={course.id} value={course.id}>
@@ -344,7 +375,14 @@ export default function GroupsPage() {
               </option>
             ))}
           </select>
-          <select className="select-field w-auto" value={filterTeacher} onChange={(e) => setFilterTeacher(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterTeacher}
+            onChange={(e) => {
+              setFilterTeacher(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Barcha o'qituvchilar</option>
             {teachersOptions.map((teacher) => (
               <option key={teacher.id} value={teacher.id}>
@@ -352,7 +390,14 @@ export default function GroupsPage() {
               </option>
             ))}
           </select>
-          <select className="select-field w-auto" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+          <select
+            className="select-field w-auto"
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">Barcha statuslar</option>
             <option value="ACTIVE">Faol</option>
             <option value="INACTIVE">Nofaol</option>
@@ -515,6 +560,50 @@ export default function GroupsPage() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="text-xs text-slate-500">
+            {startItem}-{endItem} / {total} ta guruh
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              className="select-field w-auto py-2 text-xs"
+              value={limit}
+              onChange={(event) => {
+                const nextLimit = Number(event.target.value);
+                setLimit(nextLimit);
+                setPage(1);
+              }}
+            >
+              <option value={20}>20 ta</option>
+              <option value={50}>50 ta</option>
+              <option value={100}>100 ta</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={page <= 1 || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              <ChevronLeft size={14} />
+              Oldingi
+            </button>
+
+            <span className="text-xs text-slate-500 px-1.5">
+              Sahifa {page} / {totalPages}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={page >= totalPages || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              Keyingi
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
