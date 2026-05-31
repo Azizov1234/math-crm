@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// To'g'ridan-to'g'ri sening ishlayotgan backend servering manzili ulandi
+const BASE_URL = 'http://165.232.78.250:8000';
 const AUTH_STORAGE_KEY = 'crm-auth-v2';
 
 export const api = axios.create({
